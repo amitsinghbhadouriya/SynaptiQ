@@ -172,3 +172,90 @@ class Storage:
                 conn.execute("DELETE FROM evaluation_results WHERE run_id = ?", (run_id,))
             conn.execute("DELETE FROM evaluation_runs WHERE document_id = ?", (document_id,))
             conn.execute("DELETE FROM evaluation_questions WHERE document_id = ?", (document_id,))
+            conn.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,))
+            return conn.execute("DELETE FROM documents WHERE document_id = ?", (document_id,)).rowcount > 0
+
+    # ------------------------------------------------------------------- chunks
+    def save_chunks(self, chunks: list[Chunk]) -> None:
+        if not chunks:
+            return
+        with self._write_lock, self._connect() as conn:
+            conn.execute(
+                "DELETE FROM chunks WHERE document_id = ? AND index_key = ?", (chunks[0].document_id, chunks[0].index_key)
+            )
+            conn.executemany(
+                "INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?,?)",
+                [(c.chunk_id, c.document_id, c.index_key, c.chunk_index, c.text, c.start_char, c.end_char,
+                  c.page_number, _dumps(c.metadata)) for c in chunks],
+            )
+
+    def get_chunks(self, document_id: str, index_key: str) -> list[Chunk]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM chunks WHERE document_id = ? AND index_key = ? ORDER BY chunk_index", (document_id, index_key)
+            ).fetchall()
+        return [
+            Chunk(chunk_id=r["chunk_id"], document_id=r["document_id"], chunk_index=r["chunk_index"], text=r["text"],
+                  start_char=r["start_char"], end_char=r["end_char"], index_key=r["index_key"],
+                  page_number=r["page_number"], metadata=json.loads(r["metadata_json"] or "{}"))
+            for r in rows
+        ]
+
+    def chunk_counts(self) -> dict[str, int]:
+        """Chunk count per document for its most recently built index."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT document_id, index_key, COUNT(*) AS n FROM chunks GROUP BY document_id, index_key"
+            ).fetchall()
+        counts: dict[str, int] = {}
+        for row in rows:
+            counts[row["document_id"]] = max(counts.get(row["document_id"], 0), row["n"])
+        return counts
+
+    # ---------------------------------------------------------------- questions
+    def save_questions(self, questions: list[EvalQuestion]) -> None:
+        with self._write_lock, self._connect() as conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO evaluation_questions VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [(q.question_id, q.document_id, q.question, q.reference_answer, _dumps(q.supporting_chunk_ids),
+                  _dumps([e.__dict__ for e in q.evidence]), q.question_type, q.review_status, q.source, q.created_at)
+                 for q in questions],
+            )
+
+    def list_questions(self, document_id: str | None = None, include_rejected: bool = True) -> list[EvalQuestion]:
+        sql = "SELECT * FROM evaluation_questions"
+        params: tuple = ()
+        if document_id:
+            sql += " WHERE document_id = ?"
+            params = (document_id,)
+        sql += " ORDER BY created_at, question_id"
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        questions = [
+            EvalQuestion.from_dict({
+                "question_id": r["question_id"], "document_id": r["document_id"], "question": r["question"],
+                "reference_answer": r["reference_answer"], "question_type": r["question_type"],
+                "evidence": json.loads(r["evidence_json"] or "[]"),
+                "supporting_chunk_ids": json.loads(r["supporting_chunk_ids"] or "[]"),
+                "review_status": r["review_status"], "source": r["source"], "created_at": r["created_at"],
+            })
+            for r in rows
+        ]
+        return questions if include_rejected else [q for q in questions if q.review_status != "rejected"]
+
+    def get_question(self, question_id: str) -> EvalQuestion | None:
+        return next((q for q in self.list_questions() if q.question_id == question_id), None)
+
+    def update_question(self, question_id: str, **fields: Any) -> bool:
+        allowed = {"question", "reference_answer", "review_status", "question_type"}
+        updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+        if not updates:
+            return False
+        assignments = ", ".join(f"{k} = ?" for k in updates)
+        with self._write_lock, self._connect() as conn:
+            cur = conn.execute(
+                f"UPDATE evaluation_questions SET {assignments} WHERE question_id = ?", (*updates.values(), question_id)
+            )
+            return cur.rowcount > 0
+
+    def delete_questions(self, document_id: str, source: str | None = None) -> None:
