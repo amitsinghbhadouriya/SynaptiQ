@@ -58,3 +58,34 @@ SynaptiQ uses high-performance modern web typography loaded via fontsource:
 
 ---
 
+## 4. Key Interactive Components
+
+| Component | Location | What It Does |
+|---|---|---|
+| **TechText** | `frontend/src/components/reactbits/TechText.jsx` | Renders the interactive "SynaptiQ" wordmark on HTML5 canvas with a metrics intro, draggable letter physics, and custom gradient glow on the letter Q. |
+| **ElectricLogo** | `frontend/src/components/reactbits/ElectricLogo.jsx` | Renders a WebGL interactive brand logo with animated electric arcs and lightning crackles. |
+| **SynapseScene** | `frontend/src/components/three/SynapseScene.jsx` | 3D Three.js particle scene depicting a neural synapse network that rotates with mouse parallax. |
+| **ScrollFloat** | `frontend/src/components/reactbits/ScrollFloat.jsx` | Section titles float upwards and fade into view smoothly as the user scrolls down. |
+| **ScrollReveal** | `frontend/src/components/reactbits/ScrollReveal.jsx` | Words illuminate one by one based on scroll progress. |
+| **ScrollExpand** | `frontend/src/components/reactbits/ScrollExpand.jsx` | The showcase dashboard expands to full width with a smooth pinned scroll interaction. |
+| **StarBorder** | `frontend/src/components/reactbits/StarBorder.jsx` | Buttons feature an animated luminous shooting-star border effect. |
+| **TargetCursor** | `frontend/src/components/reactbits/TargetCursor.jsx` | Custom cybernetic bracket cursor that snaps onto interactive targets. |
+| **MagicBento** | `frontend/src/components/reactbits/MagicBento.jsx` | High-tech bento grid cards in the dashboard with spotlight mouse hover glow and ripple effects. |
+| **BounceCards** | `frontend/src/components/reactbits/BounceCards.jsx` | Interactive technology cards that tilt and bounce on hover. |
+
+---
+
+## 5. Visual Hierarchy & Spacing
+
+- **Desktop Layout**: Standard max content width is bounded at `1280px` to maintain comfortable readability.
+- **Fluid Typography**: Uses CSS `clamp()` functions (e.g., `font-size: clamp(2rem, 5vw, 3.8rem)`) to scale effortlessly across mobile phones, tablets, laptops, and ultra-wide desktop monitors.
+- **Consistent Section Cadence**: Each section on the landing page is separated by standard vertical padding (`clamp(80px, 10vw, 140px)`).
+
+---
+
+## 6. Accessibility (a11y) & Performance
+
+- **Reduced Motion Support**: If a user has `prefers-reduced-motion` enabled in their operating system, all continuous animations and transitions gracefully collapse to zero-duration.
+- **Screen Reader Support**: Visually hidden headings (`.sq-visually-hidden`) are provided for assistive readers.
+- **Hardware Acceleration**: Canvas and Three.js layers utilize GPU compositing (`will-change: transform`), ensuring 60 FPS performance even on low-power devices.
+- **Theme Adaptability**: The dashboard supports both dark and light modes, controlled cleanly via `data-theme` on the root HTML tag.
