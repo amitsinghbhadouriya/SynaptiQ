@@ -37,3 +37,43 @@ def chunk_document(document: Document, chunk_size: int, chunk_overlap: int, inde
     text = document.text
     chunks: list[Chunk] = []
     sections = document.sections or []
+    if not sections:
+        from .schemas import SectionSpan
+
+        sections = [SectionSpan(0, len(text))]
+
+    for section in sections:
+        sentences: list[Sentence] = []
+        for sentence in split_sentences(text[section.start : section.end], offset=section.start):
+            sentences.extend(_hard_split(sentence, chunk_size) if len(sentence.text) > chunk_size else [sentence])
+
+        window: list[Sentence] = []
+        for sentence in sentences:
+            if window and sentence.end - window[0].start > chunk_size:
+                chunks.append(_make_chunk(document, text, window, len(chunks), index_key, section))
+                # Carry trailing sentences forward as overlap.
+                carry: list[Sentence] = []
+                for previous in reversed(window):
+                    if window[-1].end - previous.start > chunk_overlap:
+                        break
+                    carry.insert(0, previous)
+                window = carry if carry and sentence.end - carry[0].start <= chunk_size else []
+            window.append(sentence)
+        if window:
+            chunks.append(_make_chunk(document, text, window, len(chunks), index_key, section))
+    return chunks
+
+
+def _make_chunk(document: Document, text: str, window: list[Sentence], index: int, index_key: str, section) -> Chunk:
+    start, end = window[0].start, window[-1].end
+    return Chunk(
+        chunk_id=f"{document.document_id}-{index_key}-{index:04d}",
+        document_id=document.document_id,
+        chunk_index=index,
+        text=text[start:end],
+        start_char=start,
+        end_char=end,
+        index_key=index_key,
+        page_number=section.page_number,
+        metadata={"section": section.label or "", "filename": document.filename},
+    )
