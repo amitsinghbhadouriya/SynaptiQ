@@ -427,3 +427,147 @@ const StarBorder = ({
         state.lap += dt;
         extra = (ease(Math.min(1, state.lap / LAP)) - before) * total * s.direction;
         if (state.lap >= LAP) state.lap = -1;
+      }
+      state.motion = state.velocity + extra / dt;
+      state.phase = wrap(state.phase + state.velocity * dt + extra, total);
+
+      const pace = Math.abs(state.motion) / Math.max(1, Math.abs(total / s.duration));
+      if (s.sparkle && !reduce && state.reveal > 0.05) {
+        state.emit += dt * (2 + 6 * Math.min(2, pace)) * s.stars;
+        while (state.emit > 1) {
+          state.emit -= 1;
+          pointAt(shape, state.phase + Math.floor(Math.random() * s.stars) * spacing, point);
+          spawnDust(point.x, point.y, point.nx, point.ny, state.motion);
+        }
+      }
+      for (let i = dust.length - 1; i >= 0; i--) {
+        const mote = dust[i];
+        mote.age += dt;
+        mote.x += mote.vx * dt;
+        mote.y += mote.vy * dt;
+        mote.vx *= Math.exp(-dt * 2.2);
+        mote.vy *= Math.exp(-dt * 2.2);
+        if (mote.age >= mote.life) dust.splice(i, 1);
+      }
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        pulses[i].age += dt;
+        if (pulses[i].age >= 0.65) pulses.splice(i, 1);
+      }
+
+      draw(s, shape);
+
+      const settling =
+        Math.abs(revealTarget - state.reveal) > 0.002 ||
+        Math.abs(boostTarget - state.boost) > 0.002 ||
+        state.flash > 0.01 ||
+        pulses.length > 0 ||
+        dust.length > 0;
+      const moving = Math.abs(state.motion) > 0.05 || cruise !== 0 || state.lap >= 0;
+      const showing = state.reveal > 0.002 || revealTarget > 0;
+      if (state.visible && (settling || (moving && showing) || state.hovered)) raf = requestAnimationFrame(frame);
+    };
+
+    const wake = () => {
+      if (raf || !alive || !state.visible) return;
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
+    wakeRef.current = wake;
+
+    const onEnter = event => {
+      const s = settingsRef.current;
+      [state.pointerX, state.pointerY] = local(event);
+      state.hovered = true;
+      if (s.hover === 'reveal' && state.reveal < 0.15) {
+        state.phase = project(shapeFor(s), state.pointerX - s.thickness / 2, state.pointerY - s.thickness / 2);
+        state.velocity = 0;
+      }
+      if (s.hover === 'lap' && state.lap < 0 && !reduce) state.lap = 0;
+      wake();
+    };
+    const onLeave = () => {
+      state.hovered = false;
+      wake();
+    };
+    const pulse = origin => {
+      if (!settingsRef.current.clickPulse) return;
+      pulses.push({ origin, age: 0 });
+      if (pulses.length > 4) pulses.shift();
+      state.flash = 1;
+      wake();
+    };
+    const onDown = event => {
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
+      const s = settingsRef.current;
+      const [x, y] = local(event);
+      pulse(project(shapeFor(s), x - s.thickness / 2, y - s.thickness / 2));
+    };
+    const onClick = event => {
+      if (event.detail === 0) pulse(state.phase);
+    };
+    const onFocus = () => {
+      state.focused = root.matches(':focus-visible');
+      if (state.focused && settingsRef.current.hover === 'lap' && state.lap < 0 && !reduce) state.lap = 0;
+      wake();
+    };
+    const onBlur = () => {
+      state.focused = false;
+      wake();
+    };
+
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(root);
+    const visibility = new IntersectionObserver(entries => {
+      state.visible = entries.some(entry => entry.isIntersecting);
+      if (state.visible) wake();
+    });
+    visibility.observe(root);
+    root.addEventListener('pointerenter', onEnter);
+    root.addEventListener('pointerleave', onLeave);
+    root.addEventListener('pointerdown', onDown);
+    root.addEventListener('click', onClick);
+    root.addEventListener('focus', onFocus);
+    root.addEventListener('blur', onBlur);
+    measure();
+
+    return () => {
+      alive = false;
+      wakeRef.current = null;
+      cancelAnimationFrame(raf);
+      resizeObserver.disconnect();
+      visibility.disconnect();
+      root.removeEventListener('pointerenter', onEnter);
+      root.removeEventListener('pointerleave', onLeave);
+      root.removeEventListener('pointerdown', onDown);
+      root.removeEventListener('click', onClick);
+      root.removeEventListener('focus', onFocus);
+      root.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    wakeRef.current?.();
+  });
+
+  return (
+    <Component
+      ref={rootRef}
+      className={`star-border${className ? ` ${className}` : ''}`}
+      style={{
+        '--star-border-radius': `${settings.radius}px`,
+        '--star-border-thickness': `${settings.thickness}px`,
+        '--star-border-surface': backgroundColor ?? palette.surface,
+        '--star-border-text': textColor ?? palette.text,
+        '--star-border-track': borderColor ?? palette.track,
+        ...style
+      }}
+      {...(Component === 'button' && rest.type === undefined ? { type: 'button' } : null)}
+      {...rest}
+    >
+      <canvas ref={canvasRef} className="star-border__light" aria-hidden="true" />
+      <span className="star-border__content">{children}</span>
+    </Component>
+  );
+};
+
+export default StarBorder;
