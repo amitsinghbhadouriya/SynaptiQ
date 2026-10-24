@@ -1,0 +1,33 @@
+{
+  "document": "lumen_labs_handbook.txt",
+  "description": "Manually reviewed test set for the sample handbook. Evidence is given as verbatim quotes and located in the document when the set is loaded.",
+  "questions": [
+    {
+      "question": "How many days of paid annual leave do full-time employees get?",
+      "reference_answer": "Full-time employees receive 24 days of paid annual leave per calendar year.",
+      "question_type": "numerical",
+      "evidence_quotes": ["Full-time employees receive 24 days of paid annual leave per calendar year."]
+    },
+    {
+      "question": "How long is the probation period for new employees?",
+      "reference_answer": "New employees complete a probation period of 90 days.",
+      "question_type": "numerical",
+      "evidence_quotes": ["New employees complete a probation period of 90 days."]
+    },
+    {
+      "question": "Who has to approve international business travel?",
+      "reference_answer": "International travel must be approved by a department director before any booking is made.",
+      "question_type": "factual",
+      "evidence_quotes": ["International travel must be approved by a department director before any booking is made."]
+    },
+    {
+      "question": "What is the nightly limit for a hotel within the country?",
+      "reference_answer": "Hotel stays within the country are reimbursed up to 150 euros per night.",
+      "question_type": "numerical",
+      "evidence_quotes": ["Hotel stays within the country are reimbursed up to 150 euros per night."]
+    },
+    {
+      "question": "How many weeks of paid parental leave do primary caregivers receive?",
+      "reference_answer": "Primary caregivers are offered 18 weeks of fully paid parental leave.",
+      "question_type": "numerical",
+      "evidence_quotes": ["Primary caregivers are offered 18 weeks of fully paid parental leave."]
