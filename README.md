@@ -77,3 +77,83 @@ first: `pip install torch --index-url https://download.pytorch.org/whl/cpu`.
 
 ### Try the demo (about 10 seconds)
 
+1. On the landing page click **Launch dashboard**.
+2. Click **Load demo workspace**. SynaptiQ ingests the bundled *Lumen Labs Employee Handbook*
+   (fictional, non-sensitive), loads its manually reviewed 14-question test set and runs a
+   deliberately narrow **baseline** (chunk 280/0, top-k 1).
+3. The baseline's failures are diagnosed and the top recommendation (for example
+   *Increase top-k from 1 to 2*) is run automatically as a **candidate** on the same questions.
+4. Explore **Overview → Evaluations** (click any question for its evidence) **→ Analytics → Reports**.
+
+Every number is computed by the run you just started — nothing is precomputed. With the default
+Sentence Transformers model the demo measured 71% → 86% pass rate (2 questions fixed, 0
+regressed); exact values depend on the embedding backend.
+
+---
+
+## Running the app
+
+| Command | What you get |
+|---|---|
+| `streamlit run app.py` | **Main app.** Landing page, dashboard and Workbench at <http://localhost:8501> |
+| `uvicorn backend.api:app --reload` | REST API (<http://localhost:8000/docs>) **and** the same website at <http://localhost:8000> |
+| `pytest` | Test suite (offline, ~1 minute) |
+
+Streamlit and FastAPI use the same local storage folder, and ChromaDB's local store is not meant
+to be shared by two processes. Run one of them at a time — or give the second its own storage, e.g.
+`$env:CHROMA_PATH="./storage/api/chroma"; $env:DB_PATH="./storage/api/synaptiq.db"` before starting
+uvicorn. SynaptiQ holds a lock on the folder, so a second process stops with a clear message.
+
+### Pages
+
+* **Home** — the 3D landing page.
+* **Dashboard** — the evaluation dashboard (modeled on the reference video): pill navigation
+  (Overview, Documents, Evaluations, Analytics, Reports), light/dark toggle with a circular reveal,
+  count-up numbers, staggered card entrances and a Magic Bento overview grid.
+* **Workbench** (user menu → Workbench) — native Streamlit tools: `st.file_uploader`, human review of
+  generated questions in a pandas `st.data_editor`, runs with a live progress bar, raw results tables
+  and Plotly charts, and run comparison.
+
+---
+
+## How the website is built
+
+The landing page is built from self-contained sections (`frontend/src/landing/sections/`):
+`Navbar → Hero → Problem → Loop → Showcase → Features → Diagnosis → Pipeline → TechStack → CallToAction`.
+
+| React Bits component | Used for |
+|---|---|
+| **TechText** | The animated "SynaptiQ" wordmark in the hero (metrics intro, letter reveal, click-kick) |
+| **ElectricLogo** | The glowing SynaptiQ logo mark above the wordmark (WebGL, interactive) |
+| **ScrollFloat** | Every section heading floats in as you scroll |
+| **ScrollReveal** | Section copy and the closing statement reveal word by word on scroll |
+| **ScrollExpand** | A dashboard screenshot expands to full screen on scroll and reveals the three test modes |
+| **TargetCursor** | The bracket cursor that locks onto cards and images across the landing page |
+| **StarBorder** | Every button — landing CTAs and all dashboard buttons |
+| **AccordionGallery** | Feature explanation cards (illustrated, no photos; extended with `media`/`content` slots) |
+| **BounceCards** | The technology stack cards |
+| **MagicBento** | The dashboard Overview grid (border glow, spotlight, click ripple) |
+
+The 3D hero background is a custom three.js scene (`components/three/SynapseScene.jsx`): a rotating
+synapse network with travelling signal pulses, pointer parallax and scroll fade.
+
+**One UI, two hosts.** `frontend/src/bridge/transport.js` detects where it runs: inside Streamlit it
+uses the component protocol (Python receives each UI action, runs it, and sends back new state); when
+served by FastAPI it calls `/api/v1/ui/*`. Both paths use `backend/ui_bridge.py`.
+
+Colours are deliberately restrained: near-black and neutral greys, one blue accent, green/red only
+for pass/fail. Chart palettes were checked for colour-vision-deficiency separation and contrast.
+
+### Rebuilding the front end (only if you change it)
+
+Requires Node.js 18+.
+
+```bash
+npm --prefix frontend install
+npm --prefix frontend run build    # writes frontend/dist, used by Streamlit and FastAPI
+npm --prefix frontend run dev      # hot-reload at http://localhost:5173 (proxies /api to :8000)
+```
+
+---
+
+## Evaluation method
