@@ -72,3 +72,40 @@ When changed, SynaptiQ automatically re-indexes the vectors into a dedicated col
 If your team already has an existing RAG system (built on **LangChain**, **LlamaIndex**, or custom Python code), you can use SynaptiQ as an **external evaluation and diagnostic harness** via its REST API:
 
 ### Workflow:
+1. **Import Documents**: Call `POST /api/v1/documents` to ingest your knowledge base.
+2. **Import or Generate Test Questions**: Call `POST /api/v1/evaluation/questions/import` with your existing test questions and evidence quotes.
+3. **Trigger Evaluation**: Call `POST /api/v1/evaluation/runs?wait=true`.
+4. **Inspect Failure Diagnoses**: Fetch results from `GET /api/v1/evaluation/runs/{run_id}` to see if any questions experienced Retrieval Failures or Generation Failures.
+5. **Get Concrete Recommendations**: Call `POST /api/v1/evaluation/runs/{run_id}/recommendation` to see what configuration change improves the pass rate.
+
+---
+
+## 5. CI/CD Automated Regression Testing
+
+You can run SynaptiQ inside your **GitHub Actions** or **GitLab CI** pipelines to ensure that changes to your prompts, chunking, or documents do not cause regressions:
+
+```yaml
+# Example GitHub Actions step
+name: RAG Evaluation Benchmark
+
+on: [push, pull_request]
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run SynaptiQ Evaluation Suite
+        run: |
+          pytest tests/ -v
+```
