@@ -1,0 +1,75 @@
+/* Global tokens and resets. The landing page is dark; the dashboard switches light/dark via
+   data-theme on <html> (see dashboard/dashboard.css). */
+
+:root {
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* landing palette: near-black neutrals with vibrant modern accents */
+  --l-bg: #07080b;
+  --l-bg-2: #0b0d12;
+  --l-surface: #0f1117;
+  --l-surface-2: #151822;
+  --l-border: rgba(255, 255, 255, 0.08);
+  --l-border-strong: rgba(255, 255, 255, 0.16);
+  --l-ink: #eef0f5;
+  --l-ink-2: #b4b9c5;
+  --l-muted: #7d8494;
+  --l-accent: #3987e5;
+  --l-accent-glow: rgba(57, 135, 229, 0.28);
+  --l-accent-soft: rgba(57, 135, 229, 0.12);
+  --l-good: #10b981;
+  --l-warning: #f59e0b;
+  --l-bad: #f43f5e;
+  --l-purple: #a855f7;
+  --l-cyan: #0ea5e9;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(57, 135, 229, 0.35);
+  color: #ffffff;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--l-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  border: 2px solid var(--l-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
