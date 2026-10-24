@@ -58,3 +58,34 @@ export default function Features() {
               {point}
             </span>
           ))}
+        </span>
+      </span>
+    )
+  }));
+
+  return (
+    <section className="section" id="features">
+      <div className="section__inner">
+        <SectionHeading eyebrow="03 — Key features">Everything you need to debug RAG</SectionHeading>
+        <p className="section__hint">Hover or focus a card to open it. Use the arrow keys to move between cards.</p>
+        <AccordionGallery
+          items={items}
+          defaultIndex={3}
+          height={narrow ? 520 : 540}
+          gap={10}
+          radius={18}
+          expandRatio={narrow ? 0.6 : 0.46}
+          accentColor="#3987e5"
+          overlayColor="#07080b"
+          textColor="#eef0f5"
+          grayscale={false}
+          parallax={0.4}
+          tilt={6}
+          duration={0.65}
+          trigger="hover"
+          panelClassName="cursor-target"
+        />
+      </div>
+    </section>
+  );
+}
