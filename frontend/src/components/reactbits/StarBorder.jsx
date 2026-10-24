@@ -284,3 +284,146 @@ const StarBorder = ({
       core.addColorStop(s.light ? 0.55 : 1, rgba(tone, s.light ? intensity * 0.12 : 0));
       core.addColorStop(1, rgba(tone, 0));
       ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 2.2, 0, TAU);
+      ctx.fill();
+
+      const spike = (3 + 4 * s.glow + s.thickness * 1.5) * twinkle;
+      const center = s.light ? tone : WHITE;
+      const horizontal = ctx.createLinearGradient(x - spike, y, x + spike, y);
+      horizontal.addColorStop(0, rgba(tone, 0));
+      horizontal.addColorStop(0.5, rgba(center, intensity * 0.95));
+      horizontal.addColorStop(1, rgba(tone, 0));
+      stroke(x - spike, y, x + spike, y, s.light ? 0.75 : 1, horizontal);
+      const vertical = ctx.createLinearGradient(x, y - spike, x, y + spike);
+      vertical.addColorStop(0, rgba(tone, 0));
+      vertical.addColorStop(0.5, rgba(center, intensity * 0.95));
+      vertical.addColorStop(1, rgba(tone, 0));
+      stroke(x, y - spike, x, y + spike, s.light ? 0.75 : 1, vertical);
+    };
+
+    const spawnDust = (x, y, nx, ny, speed) => {
+      if (dust.length > 48) return;
+      const push = 3 + Math.random() * 10;
+      const drift = (Math.random() - 0.5) * 8;
+      dust.push({
+        x: x + nx * (Math.random() * 3 - 1),
+        y: y + ny * (Math.random() * 3 - 1),
+        vx: nx * push - ny * drift - speed * -ny * 0.04,
+        vy: ny * push + nx * drift - speed * nx * 0.04,
+        age: 0,
+        life: 0.35 + Math.random() * 0.5,
+        size: 0.45 + Math.random() * 0.7,
+        seed: Math.random() * TAU
+      });
+    };
+
+    const draw = (base, shape) => {
+      const s = state.boost > 0.001 ? { ...base, glow: Math.min(1.5, base.glow + 0.4 * state.boost) } : base;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.width < 2 || state.height < 2) return;
+      const offset = (BLEED + s.thickness / 2) * state.dpr;
+      ctx.setTransform(state.dpr, 0, 0, state.dpr, offset, offset);
+      ctx.globalCompositeOperation = s.light ? 'source-over' : 'lighter';
+      ctx.lineCap = 'butt';
+
+      const total = shape.total;
+      const spacing = total / s.stars;
+      const speed = Math.abs(state.motion);
+      const sign = state.motion >= 0 ? 1 : -1;
+      const span = s.trailLength * s.duration;
+      const length = Math.min(speed * span, spacing * 0.92, total * 0.6);
+      const intensity = state.reveal * (1 + 0.4 * state.boost + 0.6 * state.flash);
+
+      const ring = state.flash * (s.light ? 0.18 : 0.32) + state.boost * state.reveal * (s.light ? 0.07 : 0.12);
+      if (ring > 0.005) {
+        ctx.lineWidth = s.thickness + 2 * s.glow;
+        ctx.strokeStyle = rgba(colors.head, ring);
+        ctx.beginPath();
+        ctx.roundRect(
+          0,
+          0,
+          Math.max(1, state.width - s.thickness),
+          Math.max(1, state.height - s.thickness),
+          Math.max(0, shape.r)
+        );
+        ctx.stroke();
+      }
+
+      const still = clamp(1 - speed / Math.max(1, (total / s.duration) * 0.6), 0, 1) * Math.min(1, intensity);
+      const rest = (10 + 14 * s.glow + s.thickness * 2) * still;
+      for (let i = 0; i < s.stars; i++) {
+        const head = state.phase + i * spacing;
+        drawTrail(s, shape, head, length, sign, Math.min(1, intensity));
+        if (still > 0.01) {
+          drawTrail(s, shape, head, rest, 1, still, false);
+          drawTrail(s, shape, head, rest, -1, still, false);
+        }
+      }
+
+      pulses.forEach(pulse => {
+        const progress = pulse.age / 0.65;
+        const fade = (1 - progress) ** 2;
+        const travel = (total / 2) * (1 - (1 - Math.min(1, pulse.age / 0.5)) ** 2);
+        const tail = Math.min(travel, total * 0.16);
+        [1, -1].forEach(way => {
+          const front = pulse.origin + way * travel;
+          drawTrail(s, shape, front, tail, way, fade);
+          pointAt(shape, front, point);
+          drawHead(s, point.x, point.y, fade * 0.8, 0.8);
+        });
+      });
+
+      for (let i = 0; i < s.stars; i++) {
+        pointAt(shape, state.phase + i * spacing, point);
+        const twinkle = 0.82 + 0.18 * Math.sin(state.time * 6.1 + i * 2.3) * Math.sin(state.time * 2.7 + i);
+        drawHead(s, point.x, point.y, Math.min(1.3, intensity), twinkle);
+      }
+
+      dust.forEach(mote => {
+        const left = 1 - mote.age / mote.life;
+        const shimmer = 0.45 + 0.55 * Math.sin(state.time * 20 + mote.seed);
+        const alpha = left * shimmer * state.reveal * (s.light ? 0.35 : 0.9);
+        if (alpha <= 0.01) return;
+        ctx.fillStyle = rgba(s.light ? colors.head : mix(colors.tail, WHITE, 0.6), alpha);
+        ctx.beginPath();
+        ctx.arc(mote.x, mote.y, mote.size * (0.6 + 0.4 * left), 0, TAU);
+        ctx.fill();
+      });
+    };
+
+    const frame = now => {
+      raf = 0;
+      if (!alive) return;
+      const s = settingsRef.current;
+      const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      last = now;
+      state.time += dt;
+
+      const key = `${s.color}|${s.trailColor}`;
+      if (key !== colors.key) {
+        colors.key = key;
+        colors.head = toRgb(s.color);
+        colors.tail = toRgb(s.trailColor);
+      }
+
+      const shape = shapeFor(s);
+      const total = shape.total;
+      const spacing = total / s.stars;
+      const engaged = state.hovered || state.focused;
+      const cruise = reduce ? 0 : (s.direction * total) / s.duration;
+
+      const revealTarget = s.hover === 'reveal' && !engaged ? 0 : 1;
+      state.reveal += (revealTarget - state.reveal) * (1 - Math.exp(-dt / (revealTarget > state.reveal ? 0.16 : 0.45)));
+      const boostTarget = s.hover === 'brighten' && engaged ? 1 : 0;
+      state.boost += (boostTarget - state.boost) * (1 - Math.exp(-dt / (boostTarget > state.boost ? 0.18 : 0.5)));
+      state.flash *= Math.exp(-dt / 0.22);
+
+      state.velocity += (cruise - state.velocity) * (1 - Math.exp(-dt / 0.45));
+      let extra = 0;
+      if (state.lap >= 0) {
+        const before = ease(Math.min(1, state.lap / LAP));
+        state.lap += dt;
+        extra = (ease(Math.min(1, state.lap / LAP)) - before) * total * s.direction;
+        if (state.lap >= LAP) state.lap = -1;
