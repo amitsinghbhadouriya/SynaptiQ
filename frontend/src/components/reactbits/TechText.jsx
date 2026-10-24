@@ -826,3 +826,210 @@ const TechText = ({
         container.style.cursor = nextCursor;
       }
 
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const glyph of glyphs) {
+        const moved = Math.hypot(glyph.offset.x, glyph.offset.y);
+        if (moved > 1) {
+          ctx.globalAlpha = Math.min(1, moved / 24) * 0.55;
+          blit(ctx, glyph.dashes, 0, 0, 0, 0);
+          ctx.globalAlpha = 1;
+        }
+      }
+      if (introducing && introKind === 'metrics') {
+        drawLines(s, view, accent, 1 - smoothstep(0.84, 1, progress), k =>
+          smoothstep(0.02 + 0.04 * k, 0.2 + 0.04 * k, progress)
+        );
+      } else if (guideAlpha > 0.005) {
+        drawLines(s, view, accent, guideAlpha * 0.6, () => 1);
+      }
+      glyphs.forEach((glyph, i) => {
+        if (introducing && introKind === 'assemble') {
+          ensureCells(glyph, view);
+          if (progress < glyph.assembled) {
+            drawAssembling(glyph, progress, accent);
+            return;
+          }
+        }
+        if (introducing && introKind === 'metrics') {
+          const lead = glyphs.length > 1 ? i / (glyphs.length - 1) : 0;
+          if (progress < 0.72 + 0.28 * lead) {
+            drawFilling(glyph, lead, progress, view);
+            return;
+          }
+        }
+        if (glyph.shown < 0.001) return;
+        const isQ = glyph.char === 'Q';
+        if (glyph.outline < 0.999) {
+          ctx.globalAlpha = (1 - glyph.outline) * glyph.shown;
+          if (isQ) {
+            ctx.save();
+            const glowAlpha = 0.55 + 0.35 * Math.sin(pulse * 3);
+            ctx.shadowColor = `rgba(0, 245, 255, ${glowAlpha})`;
+            ctx.shadowBlur = Math.round((20 + 8 * Math.sin(pulse * 3)) * dpr);
+            const qScale = 1 + 0.018 * Math.sin(pulse * 2.4);
+            if (qScale !== 1) {
+              const qMidX = ((glyph.box.x1 + glyph.box.x2) / 2 + glyph.offset.x) * dpr;
+              const qMidY = ((glyph.box.y1 + glyph.box.y2) / 2 + glyph.offset.y) * dpr;
+              ctx.translate(qMidX, qMidY);
+              ctx.scale(qScale, qScale);
+              ctx.translate(-qMidX, -qMidY);
+            }
+            blit(ctx, glyph.fill, glyph.offset.x, glyph.offset.y, 0, 0);
+            ctx.restore();
+          } else {
+            blit(ctx, glyph.fill, glyph.offset.x, glyph.offset.y, 0, 0);
+          }
+        }
+        if (glyph.outline > 0.001) {
+          ctx.globalAlpha = glyph.outline * glyph.shown;
+          if (isQ) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(168, 85, 247, 0.75)';
+            ctx.shadowBlur = Math.round(18 * dpr);
+            blit(ctx, glyph.dashes, glyph.offset.x, glyph.offset.y, 0, 0);
+            ctx.restore();
+          } else {
+            blit(ctx, glyph.dashes, glyph.offset.x, glyph.offset.y, 0, 0);
+          }
+        }
+        ctx.globalAlpha = 1;
+      });
+      if (presence > 0.001) drawReveal(s);
+      drawFrame(s, accent);
+
+      const hasQ = glyphs.some(g => g.char === 'Q');
+      const settling =
+        moving ||
+        introducing ||
+        kicks.length > 0 ||
+        (guideAlpha > 0.005 && guideAlpha < 0.995) ||
+        Math.abs(presence - (s.reveal === 'area' && active && dragging < 0 ? 1 : 0)) > 0.002 ||
+        (frame.alpha > 0.01 && frame.alpha < 0.99);
+      if ((active || settling || hasQ) && visible && alive) raf = requestAnimationFrame(tick);
+    };
+
+    const wake = () => {
+      if (raf || !visible || !alive) return;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
+    wakeRef.current = wake;
+
+    const resize = () => {
+      width = Math.max(1, container.clientWidth);
+      height = Math.max(1, container.clientHeight);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      layoutKey = '';
+      wake();
+    };
+
+    const locate = e => {
+      const rect = container.getBoundingClientRect();
+      pointer.x = e.clientX - rect.left;
+      pointer.y = e.clientY - rect.top;
+    };
+    const onMove = e => {
+      locate(e);
+      pointer.inside = true;
+      wake();
+    };
+    const onLeave = () => {
+      if (dragging >= 0) return;
+      pointer.inside = false;
+      wake();
+    };
+    const onDown = e => {
+      locate(e);
+      pointer.inside = true;
+      const s = settingsRef.current;
+      const primary = e.pointerType !== 'mouse' || e.button === 0;
+      const index = introducing || !primary ? -1 : glyphAt(pointer.x, pointer.y);
+      press.x = pointer.x;
+      press.y = pointer.y;
+      press.time = performance.now();
+      press.index = index;
+      if (s?.draggable && index >= 0) {
+        dragging = index;
+        grab.x = pointer.x - glyphs[index].offset.x;
+        grab.y = pointer.y - glyphs[index].offset.y;
+        container.setPointerCapture?.(e.pointerId);
+      }
+      wake();
+    };
+    const onUp = e => {
+      if (dragging >= 0) {
+        dragging = -1;
+        container.releasePointerCapture?.(e.pointerId);
+        const rect = container.getBoundingClientRect();
+        pointer.inside =
+          e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      }
+      if (
+        e.type === 'pointerup' &&
+        press.index >= 0 &&
+        settingsRef.current?.clickKick &&
+        !reducedMotion &&
+        performance.now() - press.time < 450
+      ) {
+        const rect = container.getBoundingClientRect();
+        if (Math.hypot(e.clientX - rect.left - press.x, e.clientY - rect.top - press.y) < 6) kick(press.index);
+      }
+      press.index = -1;
+      wake();
+    };
+
+    container.addEventListener('pointermove', onMove, { passive: true });
+    container.addEventListener('pointerenter', onMove, { passive: true });
+    container.addEventListener('pointerdown', onDown, { passive: true });
+    container.addEventListener('pointerup', onUp, { passive: true });
+    container.addEventListener('pointercancel', onUp, { passive: true });
+    container.addEventListener('pointerleave', onLeave, { passive: true });
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+    const intersectionObserver = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      wake();
+    });
+    intersectionObserver.observe(container);
+    const themeObserver = new MutationObserver(wake);
+    for (const node of [document.documentElement, document.body]) {
+      if (node) themeObserver.observe(node, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
+    }
+    const schemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+    schemeQuery?.addEventListener?.('change', wake);
+    if (document.fonts) document.fonts.ready.then(fontsLoaded, fontsLoaded);
+
+    resize();
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      wakeRef.current = () => {};
+      resizeObserver.disconnect();
+      intersectionObserver.disconnect();
+      themeObserver.disconnect();
+      schemeQuery?.removeEventListener?.('change', wake);
+      container.style.cursor = '';
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerenter', onMove);
+      container.removeEventListener('pointerdown', onDown);
+      container.removeEventListener('pointerup', onUp);
+      container.removeEventListener('pointercancel', onUp);
+      container.removeEventListener('pointerleave', onLeave);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className={`tech-text ${className}`.trim()} style={style} role="img" aria-label={text}>
+      <canvas ref={canvasRef} className="tech-text-canvas" />
+    </div>
+  );
+};
+
+export default TechText;
