@@ -74,3 +74,79 @@ const ScrollReveal = ({
   mode = 'scrub',
   duration = 0.8,
   highlightColor = '',
+  containerClassName = '',
+  textClassName = '',
+  rotationEnd = 'bottom bottom',
+  wordAnimationEnd = 'bottom bottom'
+}) => {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+
+  const text = useMemo(() => {
+    const parts = Children.toArray(children);
+    return parts.every(part => typeof part === 'string' || typeof part === 'number') ? parts.join('') : null;
+  }, [children]);
+
+  const splitText = useMemo(() => {
+    if (text === null) return null;
+    return text.split(/(\s+)/).map((word, index) =>
+      word.trim() === '' ? (
+        word
+      ) : (
+        <span className="scroll-reveal-word" key={index}>
+          {splitBy === 'chars' ? (
+            Array.from(word).map((char, charIndex) => (
+              <span className="scroll-reveal-piece" key={charIndex}>
+                {char}
+              </span>
+            ))
+          ) : (
+            <span className="scroll-reveal-piece">{word}</span>
+          )}
+        </span>
+      )
+    );
+  }, [text, splitBy]);
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  useIsomorphicLayoutEffect(() => {
+    const el = containerRef.current;
+    const textEl = textRef.current;
+    if (!el || !textEl) return;
+    if (scrollContainerRef && !scrollContainerRef.current) return;
+
+    const scroller = scrollContainerRef?.current || window;
+    const wrappers = Array.from(el.querySelectorAll('.scroll-reveal-word'));
+    const pieces = wrappers.length ? Array.from(el.querySelectorAll('.scroll-reveal-piece')) : [textEl];
+    const viewportHeight = () => (scroller instanceof HTMLElement ? scroller.clientHeight : window.innerHeight);
+    const scrub = smoothing > 0 ? smoothing : true;
+    const span = mode === 'enter' ? Math.max(0.05, duration) : SCRUB_SPAN;
+    const gap = Math.max(0, stagger);
+    const look = {
+      effect,
+      masked: effect === 'rise' && wrappers.length > 0,
+      baseOpacity,
+      blur: enableBlur ? blurStrength : 0,
+      offset: baseOffset,
+      highlightColor
+    };
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const order = pieces.map((_, index) => index);
+      const last = pieces.map(() => -1);
+      const state = { p: 0 };
+      let count = pieces.length;
+
+      const measure = () => {
+        if (splitBy !== 'lines' || !wrappers.length) return;
+        let line = -1;
+        let top = -Infinity;
+        wrappers.forEach((wrapper, index) => {
+          const next = wrapper.offsetTop;
+          if (Math.abs(next - top) > 2) {
+            line += 1;
+            top = next;
