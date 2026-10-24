@@ -90,3 +90,96 @@ const TargetCursor = ({
     const lock = { x: 0, v: 0 };
     const press = { x: 0, v: 0 };
     const presence = { x: 0, v: 0 };
+    let target = null;
+    let targetRadius = 0;
+    let quarter = 0;
+    let spinSpeed = 0;
+    let raf = 0;
+    let last = 0;
+    let lastLabel = '';
+    let lastColor = '';
+    let lastScope = null;
+
+    const scopeOf = () => resolveElement(settingsRef.current.container);
+
+    const hideCursor = () => {
+      const s = settingsRef.current;
+      const scope = scopeOf();
+      if (scope !== lastScope) {
+        lastScope?.removeAttribute('data-target-cursor-scope');
+        scope?.setAttribute('data-target-cursor-scope', '');
+        lastScope = scope;
+      }
+      const selector = scope ? '[data-target-cursor-scope]' : 'html';
+      const rule =
+        s.hideDefaultCursor && pointer.inside ? `${selector}, ${selector} * { cursor: none !important; }` : '';
+      if (style.textContent !== rule) style.textContent = rule;
+    };
+
+    const findTarget = (x, y, element) => {
+      const s = settingsRef.current;
+      const node = element || document.elementFromPoint(x, y);
+      const found = node?.closest?.(s.targetSelector) || null;
+      const scope = scopeOf();
+      if (found && scope && !scope.contains(found)) return null;
+      return found;
+    };
+
+    const lockOn = next => {
+      if (next === target) return;
+      target = next;
+      if (target) {
+        const angle = turn.x;
+        quarter = Math.round(angle / QUARTER);
+        const corner = parseFloat(getComputedStyle(target).borderTopLeftRadius) || 0;
+        targetRadius = corner;
+        spinSpeed = 0;
+      }
+    };
+
+    const frame = now => {
+      raf = 0;
+      const s = settingsRef.current;
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
+      last = now;
+
+      if (target && !target.isConnected) lockOn(null);
+      const rect = target ? target.getBoundingClientRect() : null;
+      const locked = !!rect && pointer.inside;
+      const snapW = 4.6 / s.hoverDuration;
+      const snapK = snapW * snapW;
+      const snapC = 2 * 0.62 * snapW;
+
+      spring(presence, pointer.inside ? 1 : 0, 260, 32, dt);
+      spring(lock, locked ? 1 : 0, snapK, 2 * snapW, dt);
+      spring(press, pointer.pressed && s.clickEffect ? 1 : 0, 900, 40, dt);
+
+      let goalX = pointer.x;
+      let goalY = pointer.y;
+      let goalW = s.size / 2;
+      let goalH = s.size / 2;
+      let goalR = Math.min(2, s.cornerSize / 4);
+      if (locked) {
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const lean = s.parallaxOn ? 0.08 : 0;
+        goalX = cx + (pointer.x - cx) * lean;
+        goalY = cy + (pointer.y - cy) * lean;
+        const odd = Math.abs(quarter) % 2 === 1;
+        const w = rect.width / 2 + s.padding;
+        const h = rect.height / 2 + s.padding;
+        goalW = odd ? h : w;
+        goalH = odd ? w : h;
+        goalR = s.matchRadius ? Math.min(targetRadius + Math.max(0, s.padding), s.cornerSize) : 0;
+      }
+
+      if (!pointer.inside && presence.x < 0.01) pointer.seen = false;
+      if (!pointer.seen) {
+        centerX.x = goalX;
+        centerY.x = goalY;
+        halfW.x = goalW;
+        halfH.x = goalH;
+        pointer.seen = pointer.inside;
+      }
+
+      const follow = locked ? snapK : 2200;
