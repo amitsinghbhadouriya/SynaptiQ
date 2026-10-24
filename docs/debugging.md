@@ -98,3 +98,54 @@ SQLite and ChromaDB do not support concurrent multi-process writes. SynaptiQ pla
 ---
 
 ## 4. First Run Stalls on "Loading Embedding Model..."
+
+### Symptom:
+The terminal or dashboard shows:
+`Starting SynaptiQ — loading the embedding model…` for several minutes.
+
+### Cause:
+On the very first launch, the `sentence-transformers/all-MiniLM-L6-v2` embedding model (~90 MB) is downloaded from Hugging Face and cached locally in `~/.cache/huggingface/`. On slower internet connections, this download takes 1–3 minutes. Subsequent launches load the model in under 2 seconds.
+
+### Solution:
+- Ensure your internet connection is active during the initial startup.
+- If you are permanently offline, SynaptiQ will automatically timeout and fall back to the built-in **Hashing Embedding Backend** with zero crashes.
+
+---
+
+## 5. "The Web UI Build is Missing"
+
+### Symptom:
+When visiting `http://localhost:8501` or `http://localhost:8000`, the page displays a blank screen or a message saying the web UI build is missing.
+
+### Cause:
+The `frontend/dist/` directory has not been compiled or was deleted.
+
+### Solution:
+Rebuild the frontend bundle using Node.js:
+```bash
+cd frontend
+npm install
+npm run build
+```
+Verify that `frontend/dist/index.html` exists. Then refresh your browser.
+
+---
+
+## 6. Vector Dimension Mismatch in ChromaDB
+
+### Symptom:
+`ValueError: Embedding dimension 768 does not match collection dimension 384.`
+
+### Cause:
+You previously indexed documents using a 384-dimensional embedding model (`all-MiniLM-L6-v2`), and then switched `.env` to a 768-dimensional model (`all-mpnet-base-v2`) on the same collection.
+
+### Solution:
+Clear the old Chroma collection cache:
+```bash
+# On Windows PowerShell:
+Remove-Item -Recurse -Force .\storage\chroma
+
+# On macOS / Linux:
+rm -rf storage/chroma
+```
+Restart SynaptiQ. The system will cleanly regenerate the vectors with the new dimension size.
