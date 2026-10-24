@@ -41,3 +41,47 @@ class Sentence:
 
 
 def normalize_whitespace(text: str) -> str:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", text)
+    text = re.sub(r"[ \t ]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _stem(token: str) -> str:
+    """Very light stemmer: approve/approved/approves -> approv, policies -> policy."""
+    if token.endswith("ies") and len(token) > 5:
+        return token[:-3] + "y"
+    for suffix in ("ing", "ed", "es", "s"):
+        if len(token) > len(suffix) + 3 and token.endswith(suffix) and not token.endswith("ss"):
+            token = token[: -len(suffix)]
+            break
+    if len(token) > 4 and token.endswith("e"):
+        token = token[:-1]
+    return token
+
+
+def tokenize(text: str) -> list[str]:
+    """Lowercased word tokens with trailing punctuation stripped."""
+    tokens = []
+    for match in _WORD_RE.finditer(text.lower()):
+        token = match.group(0).strip(".'-")
+        if token:
+            tokens.append(token)
+    return tokens
+
+
+def content_tokens(text: str) -> list[str]:
+    """Tokens without stopwords, lightly stemmed so 'policies' matches 'policy'."""
+    return [_stem(t) for t in tokenize(text) if t not in STOPWORDS and len(t) > 1]
+
+
+def numbers_in(text: str) -> set[str]:
+    return {m.group(0).replace(",", "").rstrip(".") for m in _NUMBER_RE.finditer(text)}
+
+
+def split_sentences(text: str, offset: int = 0) -> list[Sentence]:
+    """Split text into sentences, keeping absolute character offsets."""
+    sentences: list[Sentence] = []
+    for match in _SENTENCE_RE.finditer(text):
