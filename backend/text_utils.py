@@ -85,3 +85,47 @@ def split_sentences(text: str, offset: int = 0) -> list[Sentence]:
     """Split text into sentences, keeping absolute character offsets."""
     sentences: list[Sentence] = []
     for match in _SENTENCE_RE.finditer(text):
+        raw = match.group(0)
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        lead = len(raw) - len(raw.lstrip())
+        start = offset + match.start() + lead
+        sentences.append(Sentence(stripped, start, start + len(stripped)))
+    return sentences
+
+
+def is_abstention(answer: str | None) -> bool:
+    return bool(answer) and bool(_ABSTAIN_RE.search(answer))
+
+
+def overlap_ratio(needle_tokens: list[str], haystack_tokens: list[str]) -> float:
+    """Fraction of needle tokens present in the haystack."""
+    if not needle_tokens:
+        return 0.0
+    hay = set(haystack_tokens)
+    return sum(1 for t in needle_tokens if t in hay) / len(needle_tokens)
+
+
+def token_f1(prediction: str, reference: str) -> float:
+    pred, ref = content_tokens(prediction), content_tokens(reference)
+    if not pred or not ref:
+        return 0.0
+    ref_counts: dict[str, int] = {}
+    for t in ref:
+        ref_counts[t] = ref_counts.get(t, 0) + 1
+    common = 0
+    for t in pred:
+        if ref_counts.get(t, 0) > 0:
+            common += 1
+            ref_counts[t] -= 1
+    if common == 0:
+        return 0.0
+    precision, recall = common / len(pred), common / len(ref)
+    return 2 * precision * recall / (precision + recall)
+
+
+def truncate(text: str | None, limit: int) -> str:
+    if not text:
+        return ""
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
