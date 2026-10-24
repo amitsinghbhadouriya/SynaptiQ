@@ -355,3 +355,122 @@ function RecentRuns({ runs, selectedId, onSelect }) {
                 <td>
                   <span className="d-inline-progress">
                     <Progress value={run.pass_rate} />
+                    <span>{pct(run.pass_rate)}</span>
+                  </span>
+                </td>
+                <td className="num">{pct(run.headline?.hit_at_k)}</td>
+                <td className="num">{num(run.headline?.answer_correctness)}</td>
+                <td className="num">{ms(run.duration_ms)}</td>
+                <td className="d-muted">{ago(run.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function useColumns() {
+  const pick = () => (window.innerWidth >= 1180 ? 4 : window.innerWidth >= 640 ? 2 : 1);
+  const [columns, setColumns] = useState(pick);
+  useEffect(() => {
+    const onResize = () => setColumns(pick());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return columns;
+}
+
+export default function Overview({ data, selected, previous, theme, act }) {
+  const columns = useColumns();
+  const runs = data.runs.filter(run => run.status === 'completed');
+  const today = new Date().toISOString().slice(0, 10);
+  const runsToday = runs.filter(run => run.created_at?.slice(0, 10) === today).length;
+  const glow = theme === 'dark' ? '#3987e5' : '#2a78d6';
+
+  const items = useMemo(
+    () =>
+      selected
+        ? [
+            { id: 'hero', colSpan: 2, content: <HeroCard selected={selected} previous={previous} runs={runs} theme={theme} act={act} /> },
+            { id: 'passed', content: <PassedCard selected={selected} previous={previous} /> },
+            { id: 'failing', content: <FailuresCard selected={selected} previous={previous} labels={data.labels} /> },
+            { id: 'quality', rowSpan: 2, content: <QualityCard selected={selected} /> },
+            { id: 'chart', colSpan: 2, content: <ChartCard charts={data.charts} theme={theme} runs={runs} /> },
+            { id: 'rec', content: <RecommendationCard selected={selected} theme={theme} act={act} /> },
+            { id: 'today', content: <TodayCard count={data.evaluated_today} runsToday={runsToday} /> },
+            { id: 'export', content: <ExportCard selected={selected} theme={theme} act={act} /> },
+            { id: 'env', content: <EnvironmentCard status={data.status} /> },
+            {
+              id: 'runs',
+              colSpan: 4,
+              rowSpan: 2,
+              content: <RecentRuns runs={data.runs} selectedId={selected.run_id} onSelect={act.selectRun} />
+            }
+          ]
+        : [],
+    [selected, previous, runs, theme, act, data]
+  );
+
+  if (!selected) {
+    return (
+      <MagicBento
+        key="empty"
+        theme={theme}
+        glowColor={glow}
+        columns={columns}
+        rowHeight={200}
+        gap={12}
+        radius={20}
+        clickEffect
+        items={[
+          {
+            id: 'welcome',
+            colSpan: 3,
+            rowSpan: 2,
+            content: (
+              <div className="ov-card ov-welcome">
+                <Badge tone="accent">Getting started</Badge>
+                <h2>Evaluate your first RAG pipeline</h2>
+                <p>
+                  Load the demo workspace to run a real baseline and a recommended candidate on the bundled sample handbook,
+                  or upload your own PDF, DOCX or TXT file.
+                </p>
+                <div className="ov-actions">
+                  <Button variant="primary" theme={theme} icon={Sparkles} onClick={act.demo}>
+                    Load demo workspace
+                  </Button>
+                  <Button variant="ghost" theme={theme} icon={FileUp} onClick={act.upload}>
+                    Upload document
+                  </Button>
+                </div>
+              </div>
+            )
+          },
+          { id: 's1', content: <div className="ov-card ov-step"><b>01</b><h3>Upload</h3><p>Text, pages and headings are extracted and indexed.</p></div> },
+          { id: 's2', content: <div className="ov-card ov-step"><b>02</b><h3>Test set</h3><p>Generate questions with evidence, then review them.</p></div> },
+          { id: 's3', colSpan: 2, content: <div className="ov-card ov-step"><b>03</b><h3>Run, diagnose, verify</h3><p>Three independent modes, a likely cause per failure and a measured before/after.</p></div> },
+          { id: 's4', colSpan: 2, content: <EnvironmentCard status={data.status} /> }
+        ]}
+      />
+    );
+  }
+
+  return (
+    <MagicBento
+      key="bento"
+      theme={theme}
+      glowColor={glow}
+      columns={columns}
+      rowHeight={columns === 1 ? 190 : 216}
+      gap={12}
+      radius={20}
+      enableBorderGlow
+      enableSpotlight
+      spotlightRadius={320}
+      clickEffect
+      items={items}
+    />
+  );
+}
