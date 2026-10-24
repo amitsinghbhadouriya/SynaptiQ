@@ -205,3 +205,210 @@ const TechText = ({
         c.fillText(glyph.char, glyph.x, view.baseline);
         c.globalCompositeOperation = 'source-over';
       } else {
+        c.fillStyle = fillStyle;
+        c.fillText(glyph.char, glyph.x, view.baseline);
+      }
+      return { image, left, top };
+    };
+
+    const ensureLayout = (s, ink) => {
+      const key = [
+        s.text,
+        family(s),
+        s.fontWeight,
+        s.fontSize,
+        s.letterSpacing,
+        s.align,
+        ink,
+        s.dashLength,
+        s.dashGap,
+        s.strokeWidth,
+        s.lineStyle,
+        width,
+        height,
+        dpr
+      ].join('|');
+      if (key === layoutKey && word) return word;
+      layoutKey = key;
+      const wanted = fontFor(s, 64);
+      if (document.fonts && wanted !== requestedFont) {
+        requestedFont = wanted;
+        document.fonts.load(wanted, s.text).then(refreshFonts, refreshFonts);
+      }
+
+      const probe = scratchCtx;
+      setFont(probe, s, s.fontSize);
+      let m = probe.measureText(s.text);
+      const fit = Math.min(
+        1,
+        (width * 0.9) / Math.max(m.actualBoundingBoxLeft + m.actualBoundingBoxRight, 1),
+        (height * 0.66) / Math.max(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent, 1)
+      );
+      const size = s.fontSize * fit;
+      setFont(probe, s, size);
+      m = probe.measureText(s.text);
+      const inkWidth = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+      const inkHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+      const margin = width * 0.05;
+      const start =
+        s.align === 'left' ? margin : s.align === 'right' ? width - margin - inkWidth : (width - inkWidth) / 2;
+      const x = start + m.actualBoundingBoxLeft;
+      const baseline = (height - inkHeight) / 2 + m.actualBoundingBoxAscent;
+      const xHeight = baseline - probe.measureText('x').actualBoundingBoxAscent;
+      const capHeight = baseline - probe.measureText('H').actualBoundingBoxAscent;
+      const ascender = baseline - probe.measureText('d').actualBoundingBoxAscent;
+      const descender = baseline + probe.measureText('p').actualBoundingBoxDescent;
+      const top = baseline - m.actualBoundingBoxAscent;
+      const bottom = baseline + m.actualBoundingBoxDescent;
+      const inkTop = Math.min(top, capHeight) - 2;
+      const inkBottom = Math.max(bottom, baseline) + 2;
+      const next = {
+        size,
+        baseline,
+        left: x - m.actualBoundingBoxLeft,
+        right: x + m.actualBoundingBoxRight,
+        top,
+        bottom,
+        lines: [
+          { y: baseline, label: 'baseline' },
+          { y: xHeight, label: 'x-height' },
+          { y: capHeight, label: 'cap height' },
+          ...(capHeight - ascender > Math.max(11, size * 0.06) ? [{ y: ascender, label: 'ascender' }] : []),
+          { y: descender, label: 'descender' }
+        ],
+        bands: [
+          { y0: xHeight, y1: baseline, up: true, order: 0 },
+          { y0: capHeight, y1: xHeight, up: true, order: 1 },
+          { y0: inkTop, y1: capHeight, up: true, order: 2 },
+          { y0: baseline, y1: inkBottom, up: false, order: 1 }
+        ].filter(band => band.y1 - band.y0 > 0.5)
+      };
+      word = next;
+
+      const chars = Array.from(s.text);
+      const previous = glyphs;
+      glyphs = [];
+      let prefix = '';
+      chars.forEach((char, i) => {
+        prefix += char;
+        const own = probe.measureText(char);
+        const gx = x + probe.measureText(prefix).width - own.width;
+        if (!char.trim()) return;
+        const base = {
+          char,
+          x: gx,
+          box: {
+            x1: gx - own.actualBoundingBoxLeft,
+            y1: baseline - own.actualBoundingBoxAscent,
+            x2: gx + own.actualBoundingBoxRight,
+            y2: baseline + own.actualBoundingBoxDescent
+          }
+        };
+        const kept = previous[glyphs.length];
+        glyphs.push({
+          ...base,
+          offset: kept?.char === char ? kept.offset : { x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+          outline: 0,
+          shown: 1,
+          cells: null,
+          assembled: 0,
+          index: i,
+          fill: sprite(s, next, base, false, ink),
+          dashes: sprite(s, next, base, true, ink)
+        });
+      });
+      dragging = -1;
+      frame.index = -1;
+      return next;
+    };
+
+    const glyphAt = (x, y) => {
+      if (!word || y < word.top - 24 || y > word.bottom + 24) return -1;
+      let best = -1;
+      let bestDistance = Infinity;
+      glyphs.forEach((glyph, i) => {
+        const x1 = glyph.box.x1 + glyph.offset.x;
+        const x2 = glyph.box.x2 + glyph.offset.x;
+        const d = x < x1 ? x1 - x : x > x2 ? x - x2 : 0;
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = i;
+        }
+      });
+      return bestDistance < 28 ? best : -1;
+    };
+
+    const falloff = (target, cx, cy, radius, strength, softness) => {
+      const inner = Math.min(1, Math.max(0, 1 - softness));
+      const gradient = target.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      gradient.addColorStop(0, `rgba(0, 0, 0, ${strength})`);
+      if (inner > 0.995) {
+        gradient.addColorStop(0.995, `rgba(0, 0, 0, ${strength})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        return gradient;
+      }
+      for (let i = 0; i <= FALLOFF_STEPS; i++) {
+        const t = i / FALLOFF_STEPS;
+        const eased = t * t * (3 - 2 * t);
+        gradient.addColorStop(inner + (1 - inner) * t, `rgba(0, 0, 0, ${strength * (1 - eased)})`);
+      }
+      return gradient;
+    };
+
+    const blit = (target, art, dx, dy, originX, originY) => {
+      target.drawImage(
+        art.image,
+        Math.round((art.left + dx) * dpr - originX),
+        Math.round((art.top + dy) * dpr - originY)
+      );
+    };
+
+    const drawReveal = s => {
+      const radius = s.reach * dpr;
+      const cx = lens.x * dpr;
+      const cy = lens.y * dpr;
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = falloff(ctx, cx, cy, radius, presence, s.softness);
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      ctx.globalCompositeOperation = 'source-over';
+
+      const x0 = Math.max(0, Math.floor(cx - radius));
+      const y0 = Math.max(0, Math.floor(cy - radius));
+      const x1 = Math.min(canvas.width, Math.ceil(cx + radius));
+      const y1 = Math.min(canvas.height, Math.ceil(cy + radius));
+      if (x1 <= x0 || y1 <= y0) return;
+      const w = x1 - x0;
+      const h = y1 - y0;
+      if (scratch.width < w || scratch.height < h) {
+        scratch.width = Math.max(scratch.width, w);
+        scratch.height = Math.max(scratch.height, h);
+      }
+      scratchCtx.setTransform(1, 0, 0, 1, 0, 0);
+      scratchCtx.globalCompositeOperation = 'source-over';
+      scratchCtx.clearRect(0, 0, w, h);
+      for (const glyph of glyphs) blit(scratchCtx, glyph.dashes, glyph.offset.x, glyph.offset.y, x0, y0);
+      scratchCtx.globalCompositeOperation = 'destination-in';
+      scratchCtx.fillStyle = falloff(scratchCtx, cx - x0, cy - y0, radius, 1, s.softness);
+      scratchCtx.fillRect(0, 0, w, h);
+      scratchCtx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = presence;
+      ctx.drawImage(scratch, 0, 0, w, h, x0, y0, w, h);
+      ctx.globalAlpha = 1;
+    };
+
+    const crisp = value => (Math.round(value * dpr) + 0.5) / dpr;
+
+    const perimeterPoint = (distance, w, h) => {
+      let d = ((distance % (2 * (w + h))) + 2 * (w + h)) % (2 * (w + h));
+      if (d < w) return [frame.x1 + d, frame.y1, 0, -1];
+      d -= w;
+      if (d < h) return [frame.x2, frame.y1 + d, 1, 0];
+      d -= h;
+      if (d < w) return [frame.x2 - d, frame.y2, 0, 1];
+      d -= w;
+      return [frame.x1, frame.y2 - d, -1, 0];
+    };
+
+    const drawSpecks = (s, a, accent) => {
+      const w = frame.x2 - frame.x1;
