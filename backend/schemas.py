@@ -142,3 +142,75 @@ class RunConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> "RunConfig":
+        data = data or {}
+        known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
+
+    def short(self) -> str:
+        return f"chunk {self.chunk_size}/{self.chunk_overlap} · top-k {self.top_k}"
+
+
+@dataclass
+class RetrievedChunk:
+    chunk_id: str
+    rank: int
+    score: float
+    text: str
+    start_char: int
+    end_char: int
+    page_number: int | None = None
+    supports: bool = False
+    coverage: float = 0.0
+
+
+@dataclass
+class ModeResult:
+    mode: str
+    passed: bool | None
+    metrics: dict[str, float | None] = field(default_factory=dict)
+    retrieved: list[RetrievedChunk] = field(default_factory=list)
+    answer: str | None = None
+    contexts: list[str] = field(default_factory=list)
+    latency_ms: int | None = None
+    estimated_cost: float | None = None
+    error: str | None = None
+
+
+@dataclass
+class QuestionResult:
+    question_id: str
+    modes: dict[str, ModeResult]
+    diagnosis: str
+    diagnosis_label: str
+    diagnosis_reason: str
+    evidence_notes: list[str] = field(default_factory=list)
+    recommendation: dict[str, Any] | None = None
+
+
+@dataclass
+class EvaluationRun:
+    run_id: str
+    document_id: str
+    dataset_id: str
+    configuration: RunConfig
+    modes: list[str]
+    status: str = "queued"
+    created_at: str = field(default_factory=utc_now)
+    duration_ms: int | None = None
+    summary: dict[str, Any] = field(default_factory=dict)
+    label: str = ""
+    parent_run_id: str | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["configuration"] = self.configuration.to_dict()
+        return data
+
+
+def to_jsonable(value: Any) -> Any:
+    """Round-trip through json so dataclasses/odd types become plain values."""
+    return json.loads(json.dumps(value, default=lambda o: asdict(o) if hasattr(o, "__dataclass_fields__") else str(o)))
