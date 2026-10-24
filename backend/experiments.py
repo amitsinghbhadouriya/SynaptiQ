@@ -60,3 +60,34 @@ def compare_runs(
     for key, label, mode in COMPARED_METRICS:
         b, c = _metric(baseline, key, mode), _metric(candidate, key, mode)
         delta = round(c - b, 4) if b is not None and c is not None else None
+        rel = round(delta / b, 4) if delta is not None and b else None
+        rows.append({"metric": label, "key": key, "mode": mode or "overall", "baseline": b, "candidate": c,
+                     "delta": delta, "relative": rel})
+    for label, mode, field in (("Avg latency (ms, end-to-end)", "end_to_end", "latency_ms_avg"),
+                               ("Total est. cost (USD)", "end_to_end", "cost_total")):
+        b = baseline.summary.get("modes", {}).get(mode, {}).get(field)
+        c = candidate.summary.get("modes", {}).get(mode, {}).get(field)
+        delta = round(c - b, 6) if b is not None and c is not None else None
+        rows.append({"metric": label, "key": field, "mode": mode, "baseline": b, "candidate": c, "delta": delta,
+                     "relative": round(delta / b, 4) if delta is not None and b else None})
+
+    base_map = {r.question_id: r for r in baseline_results}
+    cand_map = {r.question_id: r for r in candidate_results}
+    fixed, regressed, still_failing, still_passing = [], [], [], []
+    for qid in sorted(shared):
+        b_pass, c_pass = base_map[qid].diagnosis == "PASS", cand_map[qid].diagnosis == "PASS"
+        entry = {"question_id": qid, "baseline": base_map[qid].diagnosis_label, "candidate": cand_map[qid].diagnosis_label}
+        (fixed if c_pass and not b_pass else regressed if b_pass and not c_pass
+         else still_passing if c_pass else still_failing).append(entry)
+
+    return {
+        "baseline_run_id": baseline.run_id,
+        "candidate_run_id": candidate.run_id,
+        "compatible": not warnings or all("preliminary" in w or "settings changed" in w for w in warnings),
+        "warnings": warnings,
+        "sample_size": len(shared),
+        "config_changes": changed,
+        "metrics": rows,
+        "questions": {"fixed": fixed, "regressed": regressed, "still_failing": still_failing,
+                      "still_passing": len(still_passing)},
+    }
