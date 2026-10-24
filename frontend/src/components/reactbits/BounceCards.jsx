@@ -77,3 +77,83 @@ export default function BounceCards({
   const clickRef = useRef(onCardClick);
   clickRef.current = onCardClick;
 
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const bodies = [];
+    const state = { hovered: -1, time: 0, layer: -1 };
+    let raf = 0;
+    let last = performance.now();
+    let alive = true;
+
+    const body = i => {
+      if (!bodies[i]) {
+        const slot = settingsRef.current.slots[i] ?? { x: 0, y: 0, rotate: 0 };
+        bodies[i] = {
+          x: slot.x,
+          y: slot.y,
+          rotate: slot.rotate,
+          scale: reduce ? 1 : 0,
+          vx: 0,
+          vy: 0,
+          vr: 0,
+          vs: 0,
+          born: state.time
+        };
+      }
+      return bodies[i];
+    };
+
+    const step = (value, velocity, target, stiffness, damping, dt) => {
+      const next = velocity + ((target - value) * stiffness - velocity * damping) * dt;
+      return [value + next * dt, next];
+    };
+
+    const frame = now => {
+      raf = 0;
+      if (!alive) return;
+      const s = settingsRef.current;
+      const dt = Math.min(1 / 30, Math.max(1 / 240, (now - last) / 1000));
+      last = now;
+      state.time += dt;
+
+      const hovered = s.enableHover ? state.hovered : -1;
+      const popStiffness = 170;
+      const popDamping = 2 * (1 - 0.85 * s.bounciness) * Math.sqrt(popStiffness);
+      const moveStiffness = 210;
+      const moveDamping = 2 * (reduce ? 1 : 0.72) * Math.sqrt(moveStiffness);
+      const substeps = Math.ceil(dt / (1 / 240));
+      const h = dt / substeps;
+      let moving = 0;
+
+      for (let i = 0; i < s.slots.length; i++) {
+        const el = cardRefs.current[i];
+        if (!el) continue;
+        const card = body(i);
+        const slot = s.slots[i];
+        const appeared = reduce || state.time - card.born >= s.delay + i * s.stagger;
+        let targetX = slot.x;
+        let targetY = slot.y;
+        let targetRotate = slot.rotate;
+        let targetScale = appeared ? 1 : 0;
+        if (hovered >= 0 && appeared) {
+          if (i === hovered) {
+            targetY = slot.y - s.cardSize * 0.04;
+            targetRotate = 0;
+            targetScale = s.hoverScale;
+          } else {
+            targetX = slot.x + Math.sign(i - hovered) * s.pushDistance;
+          }
+        }
+        for (let k = 0; k < substeps; k++) {
+          [card.x, card.vx] = step(card.x, card.vx, targetX, moveStiffness, moveDamping, h);
+          [card.y, card.vy] = step(card.y, card.vy, targetY, moveStiffness, moveDamping, h);
+          [card.rotate, card.vr] = step(card.rotate, card.vr, targetRotate, moveStiffness, moveDamping, h);
+          if (reduce) {
+            card.scale = targetScale;
+            card.vs = 0;
+          } else {
+            [card.scale, card.vs] = step(card.scale, card.vs, targetScale, popStiffness, popDamping, h);
+          }
