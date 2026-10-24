@@ -128,3 +128,133 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }
 `,Jc=`#version 300 es
+precision highp float;
+precision highp int;
+
+uniform sampler2D tFieldFrom;
+uniform sampler2D tGlowFrom;
+uniform sampler2D tFieldTo;
+uniform sampler2D tGlowTo;
+uniform vec4 uMapFrom;
+uniform vec4 uSizeFrom;
+uniform vec4 uMapTo;
+uniform vec4 uSizeTo;
+uniform float uMorph;
+uniform vec2 uResolution;
+uniform float uUnit;
+uniform float uTime;
+uniform float uPresence;
+uniform vec3 uHover;
+uniform float uHoverRadius;
+uniform vec4 uPulses[${xs}];
+uniform float uPulseBoost;
+uniform float uFlash;
+uniform vec3 uColor;
+uniform vec3 uGlowColor;
+uniform float uIntensity;
+uniform float uGlow;
+uniform float uThickness;
+uniform float uStrands;
+uniform float uBend;
+uniform float uCrackle;
+uniform float uFlicker;
+uniform float uFill;
+uniform float uInk;
+uniform vec4 uArcEnds[${vr}];
+uniform vec4 uArcShape[${vr}];
+
+in vec2 vUv;
+out vec4 fragColor;
+
+uint scramble(uint x) {
+  x ^= x >> 16u;
+  x *= 0x7feb352du;
+  x ^= x >> 15u;
+  x *= 0x846ca68bu;
+  x ^= x >> 16u;
+  return x;
+}
+
+float fieldAt(sampler2D tex, vec4 map, vec4 size, vec2 p) {
+  vec2 f = (p - map.xy) / map.z;
+  vec2 c = clamp(f, vec2(0.5), size.xy - 0.5);
+  return (textureLod(tex, c / size.xy, 0.0).r + length(f - c)) * map.z;
+}
+
+vec2 glowAt(sampler2D tex, vec4 map, vec4 size, vec2 p) {
+  vec2 f = (p - map.xy) / map.z - map.w;
+  return textureLod(tex, f / (size.zw * ${Wt}.0), 0.0).rg;
+}
+
+float shape(vec2 p, float k) {
+  float to = fieldAt(tFieldTo, uMapTo, uSizeTo, p);
+  if (k >= 1.0) return to;
+  return mix(fieldAt(tFieldFrom, uMapFrom, uSizeFrom, p), to, k);
+}
+
+vec2 aura(vec2 p, float k) {
+  vec2 to = glowAt(tGlowTo, uMapTo, uSizeTo, p);
+  if (k >= 1.0) return to;
+  return mix(glowAt(tGlowFrom, uMapFrom, uSizeFrom, p), to, k);
+}
+
+vec4 corner(ivec2 c, uint seed) {
+  uint h = scramble(uint(c.x) * 0x8da6b343u + uint(c.y) * 0xd8163841u + seed * 0xcb1ab31fu);
+  return vec4(uvec4(h, h >> 8u, h >> 16u, h >> 24u) & 255u) / 127.5 - 1.0;
+}
+
+vec2 drift(vec2 p, uint seed, out mat2 jac) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+  ivec2 c = ivec2(i);
+  vec4 ga = corner(c, seed);
+  vec4 gb = corner(c + ivec2(1, 0), seed);
+  vec4 gc = corner(c + ivec2(0, 1), seed);
+  vec4 gd = corner(c + ivec2(1, 1), seed);
+  vec2 fb = f - vec2(1.0, 0.0);
+  vec2 fc = f - vec2(0.0, 1.0);
+  vec2 fd = f - vec2(1.0);
+  vec2 va = vec2(dot(ga.xy, f), dot(ga.zw, f));
+  vec2 vb = vec2(dot(gb.xy, fb), dot(gb.zw, fb));
+  vec2 vc = vec2(dot(gc.xy, fc), dot(gc.zw, fc));
+  vec2 vd = vec2(dot(gd.xy, fd), dot(gd.zw, fd));
+  vec2 k = va - vb - vc + vd;
+  vec4 g = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.x * u.y * (ga - gb - gc + gd);
+  jac = mat2(
+    g.xy + du * (u.yx * k.x + vec2(vb.x - va.x, vc.x - va.x)),
+    g.zw + du * (u.yx * k.y + vec2(vb.y - va.y, vc.y - va.y))
+  );
+  return va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * k;
+}
+
+float wobble(vec2 p, uint seed) {
+  mat2 jac;
+  return drift(p, seed, jac).x;
+}
+
+vec2 ripple(vec2 p, out float surge) {
+  vec2 push = vec2(0.0);
+  surge = 0.0;
+  float width = uUnit * 10.0;
+  for (int i = 0; i < ${xs}; i++) {
+    vec4 pulse = uPulses[i];
+    if (pulse.w <= 0.0) continue;
+    vec2 d = p - pulse.xy;
+    float dist = length(d);
+    float front = (dist - pulse.z * uUnit * 150.0) / width;
+    float env = exp(-front * front) * pulse.w * exp(-pulse.z * 1.7) * smoothstep(0.0, uUnit * 8.0, dist);
+    push += d / max(dist, 1.0) * env * cos(front * 2.2) * uUnit * 7.5;
+    surge += env;
+  }
+  return push;
+}
+
+vec2 wander(vec2 p, float t, uint seed, float reachScale, out mat2 jac, out vec2 sway) {
+  vec2 q = p / uUnit;
+  mat2 ja;
+  mat2 jb;
+  mat2 jc;
+  mat2 jd;
+  vec2 a = drift(q * 0.028 + vec2(t * 0.29, t * 0.21), seed, ja);
