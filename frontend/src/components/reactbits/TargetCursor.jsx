@@ -276,3 +276,96 @@ const TargetCursor = ({
       hideCursor();
       wake();
     };
+
+    const insideScope = (x, y, element) => {
+      const scope = scopeOf();
+      if (!scope) return true;
+      if (element && scope.contains(element)) return true;
+      const box = scope.getBoundingClientRect();
+      return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+    };
+
+    const onPointerMove = event => {
+      if (event.pointerType && event.pointerType !== 'mouse') return;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      const inside = insideScope(pointer.x, pointer.y, event.target);
+      if (inside !== pointer.inside) {
+        pointer.inside = inside;
+        hideCursor();
+      }
+      lockOn(inside ? findTarget(pointer.x, pointer.y, event.target) : null);
+      wake();
+    };
+
+    const onPointerDown = event => {
+      if (event.pointerType && event.pointerType !== 'mouse') return;
+      pointer.pressed = true;
+      wake();
+    };
+
+    const onPointerUp = () => {
+      pointer.pressed = false;
+      wake();
+    };
+
+    const onLeave = () => {
+      pointer.inside = false;
+      pointer.pressed = false;
+      lockOn(null);
+      hideCursor();
+      wake();
+    };
+
+    const onScroll = () => {
+      if (!pointer.inside) return;
+      lockOn(findTarget(pointer.x, pointer.y));
+      wake();
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    document.documentElement.addEventListener('pointerleave', onLeave);
+    window.addEventListener('blur', onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      wakeRef.current = null;
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      document.documentElement.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('blur', onLeave);
+      lastScope?.removeAttribute('data-target-cursor-scope');
+      style.remove();
+    };
+  }, [host]);
+
+  useEffect(() => {
+    wakeRef.current?.();
+  });
+
+  if (!host) return null;
+
+  return createPortal(
+    <div ref={rootRef} className="target-cursor" style={{ mixBlendMode: blendMode, opacity: 0 }} aria-hidden="true">
+      {CORNER_ANGLES.map((angle, i) => (
+        <span
+          key={angle}
+          ref={element => {
+            cornerRefs.current[i] = element;
+          }}
+          className="target-cursor__corner"
+        />
+      ))}
+      <span ref={dotRef} className="target-cursor__dot" />
+      <span ref={labelRef} className="target-cursor__label" />
+    </div>,
+    host
+  );
+};
+
+export default TargetCursor;
