@@ -1,0 +1,38 @@
+"""Transparent, rule-based root-cause diagnosis.
+
+Inputs are three-state (True = pass, False = fail, None = not measured). Missing
+measurements are never treated as failures; when evidence is insufficient the
+diagnosis is UNCERTAIN_REQUIRES_REVIEW. A diagnosis is a likely cause backed by
+evidence, not proof of causality.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+LABELS = {
+    "PASS": "Pass",
+    "LIKELY_RETRIEVAL_FAILURE": "Retrieval failure",
+    "LIKELY_GENERATION_FAILURE": "Generation failure",
+    "LIKELY_COMBINED_FAILURE": "Combined failure",
+    "PIPELINE_INTERACTION_FAILURE": "Pipeline interaction",
+    "CORRECT_BUT_UNGROUNDED": "Correct but ungrounded",
+    "UNCERTAIN_REQUIRES_REVIEW": "Needs review",
+}
+
+NEXT_ACTIONS = {
+    "PASS": "No action needed.",
+    "LIKELY_RETRIEVAL_FAILURE": "Inspect chunking, the embedding model, top-k and ranking.",
+    "LIKELY_GENERATION_FAILURE": "Inspect the prompt, the model and how the context is used.",
+    "LIKELY_COMBINED_FAILURE": "Fix retrieval first, then repeat the generation and end-to-end tests.",
+    "PIPELINE_INTERACTION_FAILURE": "Inspect prompt construction, context ordering and context length.",
+    "CORRECT_BUT_UNGROUNDED": "Do not treat the answer as evidence-grounded; inspect retrieval.",
+    "UNCERTAIN_REQUIRES_REVIEW": "Inspect the source passage and the test question manually.",
+}
+
+
+@dataclass
+class Diagnosis:
+    code: str
+    reason: str
+    evidence: list[str] = field(default_factory=list)
