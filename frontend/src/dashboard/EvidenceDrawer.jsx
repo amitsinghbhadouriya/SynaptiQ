@@ -112,3 +112,61 @@ export default function EvidenceDrawer({ result, onClose, theme, onRunCandidate,
         </section>
 
         <section className="ev-section">
+          <h3>Reference answer</h3>
+          <p className="ev-answer">{result.reference_answer}</p>
+          {result.evidence?.length > 0 && (
+            <>
+              <h4>Reference evidence</h4>
+              {result.evidence.map(text => (
+                <blockquote key={text} className="ev-quote">
+                  {text}
+                </blockquote>
+              ))}
+            </>
+          )}
+        </section>
+
+        {retriever && (
+          <section className="ev-section">
+            <header className="ev-section__head">
+              <h3>Retriever-only · top-{retriever.retrieved.length}</h3>
+              <Verdict passed={retriever.passed} />
+            </header>
+            <div className="ev-metrics">
+              <Metric label="Hit@k" value={retriever.metrics?.hit_at_k} format={pct} />
+              <Metric label="Context recall" value={retriever.metrics?.context_recall} />
+              <Metric label="Precision" value={retriever.metrics?.context_precision} />
+              <Metric label="Ragas recall" value={retriever.metrics?.ragas_context_recall} />
+              <Metric label="First evidence rank" value={retriever.metrics?.first_relevant_rank} format={v => `#${v}`} />
+            </div>
+            <ol className="ev-chunks">
+              {retriever.retrieved.map(chunk => (
+                <li key={chunk.chunk_id} className={chunk.supports ? 'is-support' : ''}>
+                  <div className="ev-chunk__meta">
+                    <span>#{chunk.rank}</span>
+                    <span>score {chunk.score.toFixed(3)}</span>
+                    {chunk.page && <span>page {chunk.page}</span>}
+                    {chunk.supports ? (
+                      <Badge tone="good" icon={CircleCheck}>
+                        contains evidence · {pct(chunk.coverage)}
+                      </Badge>
+                    ) : chunk.coverage > 0 ? (
+                      <Badge tone="warn">partial · {pct(chunk.coverage)}</Badge>
+                    ) : (
+                      <Badge tone="neutral">no evidence</Badge>
+                    )}
+                  </div>
+                  <p>{chunk.text}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        <AnswerBlock title="Generator-only (reference evidence supplied)" mode={result.modes.generator} />
+        <AnswerBlock title="End-to-end (retrieved context)" mode={result.modes.end_to_end} />
+      </aside>
+    </div>,
+    document.body
+  );
+}
