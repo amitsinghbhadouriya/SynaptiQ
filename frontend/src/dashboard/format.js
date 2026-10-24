@@ -17,3 +17,22 @@ export function ago(iso) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 86400 * 7) return `${Math.floor(seconds / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+export const stamp = iso =>
+  iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+export const DIAGNOSIS_TONE = {
+  PASS: 'good',
+  LIKELY_RETRIEVAL_FAILURE: 'bad',
+  LIKELY_GENERATION_FAILURE: 'bad',
+  LIKELY_COMBINED_FAILURE: 'bad',
+  PIPELINE_INTERACTION_FAILURE: 'warn',
+  CORRECT_BUT_UNGROUNDED: 'warn',
+  UNCERTAIN_REQUIRES_REVIEW: 'neutral'
+};
+
+export const TYPE_LABEL = { factual: 'Factual', numerical: 'Numerical', multi_hop: 'Multi-hop', unanswerable: 'Unanswerable' };
+
+export const runName = run => (run ? run.label || run.config_short : '—');
