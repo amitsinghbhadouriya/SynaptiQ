@@ -149,3 +149,79 @@ def generate_offline(document: Document, count: int = 10, seed: int = 7, types: 
     numeric = [s for s in candidates if numbers_in(s.text)]
     plain = [s for s in candidates if not numbers_in(s.text)] or candidates
     quotas = {
+        "unanswerable": max(1, round(count * 0.15)) if "unanswerable" in types else 0,
+        "multi_hop": max(1, round(count * 0.15)) if "multi_hop" in types and len(candidates) > 3 else 0,
+    }
+    quotas["numerical"] = min(len(numeric), max(1, round(count * 0.3))) if "numerical" in types else 0
+    quotas["factual"] = max(0, count - sum(quotas.values())) if "factual" in types else 0
+
+    def spread(pool: list[Sentence], n: int) -> list[Sentence]:
+        if n <= 0 or not pool:
+            return []
+        step = len(pool) / n
+        picks = [pool[min(len(pool) - 1, int(i * step + rng.random() * step * 0.5))] for i in range(n)]
+        return list(dict.fromkeys(picks))
+
+    questions: list[EvalQuestion] = []
+
+    def add(question: str, reference: str, qtype: str, spans: list[EvidenceSpan]) -> None:
+        questions.append(EvalQuestion(
+            question_id=new_id("q"), document_id=document.document_id, question=question,
+            reference_answer=reference, question_type=qtype, evidence=spans, source="synthetic-offline",
+        ))
+
+    # Prefer sentences with a clean grammatical subject; they make readable questions.
+    numeric.sort(key=lambda s: _subject(s.text) is None)
+    plain.sort(key=lambda s: _subject(s.text) is None)
+    numeric_pool = sorted([s for s in numeric if _subject(s.text)] or numeric, key=lambda s: s.start)
+    plain_pool = sorted([s for s in plain if _subject(s.text)] or plain, key=lambda s: s.start)
+
+    for s in spread(numeric_pool, quotas["numerical"]):
+        topic = _subject(s.text) or _keyphrase(s.text, idf)
+        add(f"What figure does the document give for {topic}?", s.text, "numerical",
+            [EvidenceSpan(s.start, s.end, s.text)])
+    used = {q.evidence[0].start for q in questions}
+    for s in spread([p for p in plain_pool if p.start not in used], quotas["factual"]):
+        topic = _subject(s.text) or _keyphrase(s.text, idf)
+        add(f"What does the document say about {topic}?", s.text, "factual", [EvidenceSpan(s.start, s.end, s.text)])
+
+    # Multi-hop: two separated sentences that share a specific (high-IDF) term.
+    pairs = []
+    pool = candidates if len(candidates) <= 200 else sorted(rng.sample(candidates, 200), key=lambda s: s.start)
+    for i, a in enumerate(pool):
+        for b in pool[i + 1:]:
+            if b.start - a.end < 150:
+                continue
+            subjects = set(tokenize(_subject(a.text) or "")) | set(tokenize(_subject(b.text) or ""))
+            shared = {t for t in set(tokenize(a.text)) & set(tokenize(b.text)) & subjects
+                      if t not in STOPWORDS and len(t) > 3 and not any(c.isdigit() for c in t)}
+            if shared:
+                term = max(shared, key=lambda t: idf.get(t, 0.0))
+                pairs.append((idf.get(term, 0.0), term, a, b))
+    rng.shuffle(pairs)
+    pairs.sort(key=lambda p: p[0], reverse=True)
+    used_terms: set[str] = set()
+    for _, term, a, b in pairs:
+        if len([q for q in questions if q.question_type == "multi_hop"]) >= quotas["multi_hop"]:
+            break
+        if term in used_terms:
+            continue
+        used_terms.add(term)
+        add(f"What does the document say about {term}? Combine every relevant detail.", f"{a.text} {b.text}",
+            "multi_hop", [EvidenceSpan(a.start, a.end, a.text), EvidenceSpan(b.start, b.end, b.text)])
+    topics = [t for t in UNANSWERABLE_TOPICS if not (set(content_tokens(t)) & vocabulary)]
+    rng.shuffle(topics)
+    for topic in topics[: quotas["unanswerable"]]:
+        add(f"What does the document say about {topic}?", "The document does not contain this information.",
+            "unanswerable", [])
+    return questions[:count]
+
+
+# --------------------------------------------------------------------- Claude
+QA_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
