@@ -65,3 +65,70 @@ Uploads a document (PDF, DOCX, or TXT) for ingestion and chunking.
 - **Request**: Multipart form data with a `file` field.
 - **Size Limit**: 50 MB by default (`MAX_UPLOAD_MB`).
 
+**Response Example (`201 Created`)**:
+```json
+{
+  "document_id": "doc_e4f5a6b7c8",
+  "filename": "security_policy.pdf",
+  "status": "processed",
+  "chunk_count": 42,
+  "created": true
+}
+```
+
+### `GET /api/v1/documents`
+Lists all processed documents stored in the database.
+
+**Response Example (`200 OK`)**:
+```json
+[
+  {
+    "document_id": "doc_e4f5a6b7c8",
+    "filename": "security_policy.pdf",
+    "file_type": "pdf",
+    "char_count": 28400,
+    "chunk_count": 42,
+    "status": "processed",
+    "created_at": "2026-10-25T02:00:00Z"
+  }
+]
+```
+
+### `DELETE /api/v1/documents/{document_id}`
+Deletes a document along with all associated chunks, vector embeddings, questions, and test runs.
+
+- **Response**: `204 No Content`
+
+---
+
+## 4. Test Sets & Questions Endpoints
+
+### `POST /api/v1/evaluation/questions/generate`
+Generates synthetic candidate test questions with verbatim evidence spans.
+
+**Request Body**:
+```json
+{
+  "document_id": "doc_e4f5a6b7c8",
+  "count": 10,
+  "question_types": ["factual", "numerical", "multi_hop", "unanswerable"]
+}
+```
+
+**Response Example (`200 OK`)**:
+```json
+{
+  "dataset_id": "ds_doc_e4f5a6b7c8",
+  "status": "review_required",
+  "candidate_count": 10
+}
+```
+
+### `GET /api/v1/evaluation/datasets/{dataset_id}`
+Retrieves all questions for a given dataset.
+
+**Response Example (`200 OK`)**:
+```json
+{
+  "dataset_id": "ds_doc_e4f5a6b7c8",
+  "document_id": "doc_e4f5a6b7c8",
