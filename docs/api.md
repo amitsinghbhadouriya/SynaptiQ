@@ -199,3 +199,70 @@ Queues or runs an evaluation across the 3 independent modes.
 
 ### `GET /api/v1/evaluation/runs/{run_id}`
 Returns the status, configuration, aggregate metrics, and per-question failure diagnoses of a run.
+
+**Response Example (`200 OK`)**:
+```json
+{
+  "run_id": "run_9876543210",
+  "status": "completed",
+  "duration_ms": 3420,
+  "summary": {
+    "pass_rate": 0.85,
+    "hit_at_k": 0.90,
+    "context_recall": 0.88,
+    "faithfulness": 0.92,
+    "answer_correctness": 0.84,
+    "total_questions": 20,
+    "passed_questions": 17
+  },
+  "results": [
+    {
+      "question_id": "q_001",
+      "diagnosis": "PASS",
+      "diagnosis_label": "Pass",
+      "diagnosis_reason": "All active modes succeeded."
+    }
+  ]
+}
+```
+
+### `POST /api/v1/evaluation/runs/{run_id}/recommendation`
+Extracts the top recommended parameter fix from a baseline run and automatically triggers it as a candidate run.
+
+**Response Example (`200 OK`)**:
+```json
+{
+  "run_id": "run_candidate_5521",
+  "status": "completed",
+  "parent_run_id": "run_9876543210"
+}
+```
+
+### `POST /api/v1/evaluation/compare`
+Compares a baseline run against a candidate run.
+
+**Request Body**:
+```json
+{
+  "baseline_run_id": "run_9876543210",
+  "candidate_run_id": "run_candidate_5521",
+  "strict": true
+}
+```
+
+**Response Example (`200 OK`)**:
+```json
+{
+  "baseline_id": "run_9876543210",
+  "candidate_id": "run_candidate_5521",
+  "pass_rate_change": 0.14,
+  "fixed_count": 3,
+  "regressed_count": 0,
+  "verdict": "Improved performance with zero regressions.",
+  "fixed_questions": ["q_004", "q_007", "q_012"],
+  "regressed_questions": []
+}
+```
+
+### `GET /api/v1/evaluation/runs/{run_id}/export?format=csv`
+Exports full run data as a downloadable `.csv` or `.json` report.
