@@ -39,3 +39,44 @@ When evaluating proprietary knowledge bases:
 
 By default, SynaptiQ binds to `localhost` (`127.0.0.1`), intended for private developer use. **If you plan to expose SynaptiQ across a local network or on a public server, apply the following protections:**
 
+### 1. Reverse Proxy & HTTPS (TLS)
+Never expose FastAPI (`port 8000`) or Streamlit (`port 8501`) directly to the public internet. Place them behind a reverse proxy like **Nginx**, **Caddy**, or **Cloudflare** to terminate SSL/TLS encryption.
+
+Example Nginx block:
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name synaptiq.internal.company.com;
+
+    ssl_certificate /etc/ssl/synaptiq.crt;
+    ssl_certificate_key /etc/ssl/synaptiq.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### 2. API Authentication
+When deploying the FastAPI service, add token-based authentication (such as an `X-API-Key` header or OAuth2 Bearer token) using FastAPI dependencies:
+```python
+from fastapi import Security, HTTPException
+from fastapi.security.api_key import APIKeyHeader
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != os.environ.get("SYNAPTIQ_API_KEY"):
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+```
+
+### 3. File Upload Guardrails
+- **Max Upload Size**: Controlled via `MAX_UPLOAD_MB=50` in `.env`. Files exceeding this threshold are immediately rejected with HTTP `413 Payload Too Large`.
+- **Extension Validation**: Only `.pdf`, `.docx`, and `.txt` MIME types are accepted. Executable files or unknown binaries are rejected with HTTP `422 Unprocessable Entity`.
+
+### 4. Rate Limiting
+To prevent denial-of-service (DoS) on vector search or document ingestion, implement rate limiting using libraries such as `slowapi` on the FastAPI endpoints.
