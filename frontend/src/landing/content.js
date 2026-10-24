@@ -91,3 +91,50 @@ export const FEATURES = [
     short: 'Recommendations',
     body: 'Diagnoses become concrete experiments: the exact rank of missing evidence suggests a top-k, partial coverage suggests chunking, over-abstention suggests a threshold.',
     points: ['One change at a time', 'Hypotheses, not promises', 'One click to test it']
+  },
+  {
+    key: 'compare',
+    title: 'Before / after experiments',
+    short: 'Experiments',
+    body: 'Run the same questions against two configurations and compare raw scores, fixed and regressed questions, latency and cost — with warnings for small samples.',
+    points: ['Same question IDs enforced', 'Config diff recorded', 'CSV / JSON export and SQLite history']
+  }
+];
+
+export const DIAGNOSIS_RULES = [
+  { evidence: 'Supporting chunk is absent from the retrieved results', diagnosis: 'Retrieval failure', action: 'Inspect chunking, embedding model, top-k and ranking' },
+  { evidence: 'Evidence supplied directly, yet the generator answer is wrong or unsupported', diagnosis: 'Generation failure', action: 'Inspect prompt, model and context handling' },
+  { evidence: 'Retrieval misses the evidence and the final answer is unsupported', diagnosis: 'Combined failure', action: 'Fix retrieval first, then repeat generation tests' },
+  { evidence: 'Final answer is correct but the retrieved evidence is irrelevant', diagnosis: 'Correct but ungrounded', action: 'Do not treat the answer as evidence-grounded' },
+  { evidence: 'Metrics conflict or the reference is ambiguous', diagnosis: 'Needs review', action: 'Inspect the source and the test question' }
+];
+
+export const PIPELINE = [
+  'Upload document',
+  'Validate type & size',
+  'Extract text + metadata',
+  'Chunk & assign IDs',
+  'Embed & index in ChromaDB',
+  'Generate / import questions',
+  'Human review',
+  'Run three test modes',
+  'Diagnose likely cause',
+  'Recommend a change',
+  'Re-run the same set',
+  'Compare & export'
+];
+
+export const STACK = [
+  { name: 'Python', role: 'Core logic & pipeline', glyph: 'Py' },
+  { name: 'Streamlit', role: 'Web UI & dashboard host', glyph: 'St' },
+  { name: 'FastAPI', role: 'REST API', glyph: 'Fa' },
+  { name: 'PyMuPDF', role: 'PDF extraction', glyph: 'Mu' },
+  { name: 'python-docx', role: 'DOCX extraction', glyph: 'Dx' },
+  { name: 'Sentence Transformers', role: 'Embeddings', glyph: 'ST' },
+  { name: 'ChromaDB', role: 'Vector index & metadata', glyph: 'Ch' },
+  { name: 'Ragas', role: 'RAG evaluation metrics', glyph: 'Ra' },
+  { name: 'Pandas', role: 'Results tables', glyph: 'Pd' },
+  { name: 'Plotly', role: 'Charts', glyph: 'Pl' },
+  { name: 'SQLite', role: 'Run history', glyph: 'SQ' },
+  { name: 'Pytest', role: 'Automated tests', glyph: 'Pt' }
+];
