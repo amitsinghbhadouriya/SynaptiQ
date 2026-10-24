@@ -210,3 +210,74 @@ const ScrollExpand = ({
     current = { ...target };
     applyProgress(current.p, current.exit);
 
+    const scroller = useWindowScroll ? window : root;
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    if (useWindowScroll) {
+      document.addEventListener('scroll', onScroll, { passive: true });
+    }
+    window.addEventListener('resize', onResize);
+    const ro = new ResizeObserver(onResize);
+    ro.observe(root);
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      scroller.removeEventListener('scroll', onScroll);
+      if (useWindowScroll) {
+        document.removeEventListener('scroll', onScroll);
+      }
+      window.removeEventListener('resize', onResize);
+      ro.disconnect();
+    };
+  }, [applyProgress, useWindowScroll]);
+
+  const media =
+    mediaType === 'video' ? (
+      <video
+        ref={mediaRef}
+        className="scroll-expand__media"
+        src={src}
+        poster={poster}
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+    ) : (
+      <img ref={mediaRef} className="scroll-expand__media" src={src} alt={alt} draggable={false} />
+    );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`scroll-expand ${useWindowScroll ? '' : 'scroll-expand--scroller'} ${className}`.trim()}
+      style={style}
+      {...rest}
+    >
+      <div ref={trackRef} className="scroll-expand__track">
+        <div ref={stageRef} className="scroll-expand__stage">
+          <div ref={frameRef} className="scroll-expand__frame">
+            {media}
+            <div ref={scrimRef} className="scroll-expand__scrim" />
+            {children ? (
+              <div ref={overlayRef} className="scroll-expand__overlay">
+                {children}
+              </div>
+            ) : null}
+          </div>
+          {title ? (
+            <div ref={titleRef} className="scroll-expand__title">
+              {title}
+            </div>
+          ) : null}
+          {scrollHint ? (
+            <div ref={hintRef} className="scroll-expand__hint">
+              {scrollHint}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ScrollExpand;
