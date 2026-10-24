@@ -141,3 +141,146 @@ const StarBorder = ({
   stars = 1,
   glow = 0.6,
   sparkle = false,
+  direction = 'clockwise',
+  hover = 'lap',
+  clickPulse = true,
+  theme = 'dark',
+  backgroundColor,
+  textColor,
+  borderColor,
+  ...rest
+}) => {
+  const rootRef = useRef(null);
+  const canvasRef = useRef(null);
+  const wakeRef = useRef(null);
+  const palette = THEMES[theme] ?? THEMES.dark;
+  const light = color ?? palette.light;
+  const settings = {
+    light: theme === 'light',
+    color: light,
+    trailColor: trailColor ?? light,
+    duration: Math.max(0.3, duration),
+    thickness: Math.max(0.5, thickness),
+    radius: Math.max(0, radius),
+    trailLength: clamp(trailLength, 0, 1),
+    stars: clamp(Math.round(stars), 1, 6),
+    glow: clamp(glow, 0, 1),
+    sparkle,
+    direction: direction === 'counterclockwise' ? -1 : 1,
+    hover: HOVERS.includes(hover) ? hover : 'lap',
+    clickPulse
+  };
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!root || !canvas || !ctx) return undefined;
+
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const point = { x: 0, y: 0, nx: 0, ny: -1 };
+    const state = {
+      width: 0,
+      height: 0,
+      dpr: 1,
+      phase: 0,
+      velocity: 0,
+      motion: 0,
+      lap: -1,
+      time: 0,
+      reveal: 0,
+      boost: 0,
+      flash: 0,
+      emit: 0,
+      hovered: false,
+      focused: false,
+      pointerX: 0,
+      pointerY: 0,
+      visible: true
+    };
+    const pulses = [];
+    const dust = [];
+    const colors = { key: '', head: WHITE, tail: WHITE };
+    let raf = 0;
+    let last = performance.now();
+    let alive = true;
+
+    const measure = () => {
+      state.width = root.offsetWidth;
+      state.height = root.offsetHeight;
+      state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.round((state.width + BLEED * 2) * state.dpr));
+      canvas.height = Math.max(1, Math.round((state.height + BLEED * 2) * state.dpr));
+      canvas.style.width = `${state.width + BLEED * 2}px`;
+      canvas.style.height = `${state.height + BLEED * 2}px`;
+      canvas.style.top = `${-BLEED}px`;
+      canvas.style.left = `${-BLEED}px`;
+      wake();
+    };
+
+    const local = event => {
+      const rect = root.getBoundingClientRect();
+      const scaleX = rect.width ? state.width / rect.width : 1;
+      const scaleY = rect.height ? state.height / rect.height : 1;
+      return [(event.clientX - rect.left) * scaleX, (event.clientY - rect.top) * scaleY];
+    };
+
+    const shapeFor = s =>
+      outline(
+        Math.max(1, state.width - s.thickness),
+        Math.max(1, state.height - s.thickness),
+        s.radius - s.thickness / 2
+      );
+
+    const stroke = (x1, y1, x2, y2, width, style) => {
+      ctx.lineWidth = width;
+      ctx.strokeStyle = style;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    };
+
+    const drawTrail = (s, shape, head, length, sign, intensity, tip = true) => {
+      if (length < 0.5 || intensity <= 0) return;
+      const steps = clamp(Math.ceil(length / 2), 2, 90);
+      pointAt(shape, head, point);
+      let px = point.x;
+      let py = point.y;
+      for (let i = 1; i <= steps; i++) {
+        pointAt(shape, head - sign * length * (i / steps), point);
+        const u = 1 - (i - 0.5) / steps;
+        const fade = u * u * intensity;
+        let tone = mix(colors.tail, colors.head, u);
+        if (!s.light) tone = mix(tone, WHITE, u ** 6 * 0.65);
+        ctx.lineCap = tip && i === 1 ? 'round' : 'butt';
+        stroke(px, py, point.x, point.y, 2 + 6 * s.glow, rgba(tone, fade * (s.light ? 0.1 : 0.2) * s.glow));
+        stroke(px, py, point.x, point.y, s.thickness, rgba(tone, fade));
+        px = point.x;
+        py = point.y;
+      }
+    };
+
+    const drawHead = (s, x, y, intensity, twinkle) => {
+      if (intensity <= 0) return;
+      const tone = colors.head;
+      const reach = (12 + 40 * s.glow) * (s.light ? 0.6 : 1);
+      const bloom = ctx.createRadialGradient(x, y, 0, x, y, reach);
+      const strength = (s.light ? 0.08 : 0.4) * s.glow * intensity;
+      bloom.addColorStop(0, rgba(tone, strength));
+      bloom.addColorStop(0.2, rgba(tone, strength * 0.4));
+      bloom.addColorStop(0.5, rgba(tone, strength * 0.1));
+      bloom.addColorStop(1, rgba(tone, 0));
+      ctx.fillStyle = bloom;
+      ctx.fillRect(x - reach, y - reach, reach * 2, reach * 2);
+      if (!s.sparkle) return;
+
+      const size = (1 + s.thickness * 0.6) * (s.light ? 0.85 : 1);
+      const core = ctx.createRadialGradient(x, y, 0, x, y, size * 2.2);
+      core.addColorStop(0, rgba(s.light ? tone : WHITE, intensity));
+      core.addColorStop(s.light ? 0.3 : 0.4, rgba(s.light ? tone : mix(tone, WHITE, 0.5), intensity * 0.9));
+      core.addColorStop(s.light ? 0.55 : 1, rgba(tone, s.light ? intensity * 0.12 : 0));
+      core.addColorStop(1, rgba(tone, 0));
+      ctx.fillStyle = core;
