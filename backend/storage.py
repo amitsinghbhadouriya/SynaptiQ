@@ -259,3 +259,91 @@ class Storage:
             return cur.rowcount > 0
 
     def delete_questions(self, document_id: str, source: str | None = None) -> None:
+        with self._write_lock, self._connect() as conn:
+            if source:
+                conn.execute("DELETE FROM evaluation_questions WHERE document_id = ? AND source = ?", (document_id, source))
+            else:
+                conn.execute("DELETE FROM evaluation_questions WHERE document_id = ?", (document_id,))
+
+    # --------------------------------------------------------------------- runs
+    def save_run(self, run: EvaluationRun) -> None:
+        with self._write_lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO evaluation_runs VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET "
+                "configuration_json=excluded.configuration_json, modes_json=excluded.modes_json, "
+                "status=excluded.status, duration_ms=excluded.duration_ms, summary_json=excluded.summary_json, "
+                "label=excluded.label, parent_run_id=excluded.parent_run_id, error=excluded.error",
+                (run.run_id, run.document_id, run.dataset_id, run.created_at, _dumps(run.configuration.to_dict()),
+                 _dumps(run.modes), run.status, run.duration_ms, _dumps(run.summary), run.label, run.parent_run_id,
+                 run.error),
+            )
+
+    @staticmethod
+    def _row_to_run(row: sqlite3.Row) -> EvaluationRun:
+        return EvaluationRun(
+            run_id=row["run_id"], document_id=row["document_id"], dataset_id=row["dataset_id"],
+            configuration=RunConfig.from_dict(json.loads(row["configuration_json"])),
+            modes=json.loads(row["modes_json"]), status=row["status"], created_at=row["created_at"],
+            duration_ms=row["duration_ms"], summary=json.loads(row["summary_json"] or "{}"), label=row["label"],
+            parent_run_id=row["parent_run_id"], error=row["error"],
+        )
+
+    def get_run(self, run_id: str) -> EvaluationRun | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM evaluation_runs WHERE run_id = ?", (run_id,)).fetchone()
+        return self._row_to_run(row) if row else None
+
+    def list_runs(self, document_id: str | None = None) -> list[EvaluationRun]:
+        sql, params = "SELECT * FROM evaluation_runs", ()
+        if document_id:
+            sql, params = sql + " WHERE document_id = ?", (document_id,)
+        with self._connect() as conn:
+            rows = conn.execute(sql + " ORDER BY created_at DESC, rowid DESC", params).fetchall()
+        return [self._row_to_run(r) for r in rows]
+
+    def delete_run(self, run_id: str) -> None:
+        with self._write_lock, self._connect() as conn:
+            conn.execute("DELETE FROM evaluation_results WHERE run_id = ?", (run_id,))
+            conn.execute("DELETE FROM evaluation_runs WHERE run_id = ?", (run_id,))
+
+    # ------------------------------------------------------------------ results
+    def save_results(self, run_id: str, results: list[QuestionResult]) -> None:
+        rows = []
+        for result in results:
+            for mode, mode_result in result.modes.items():
+                rows.append((
+                    f"{run_id}:{result.question_id}:{mode}", run_id, result.question_id, mode,
+                    None if mode_result.passed is None else int(mode_result.passed),
+                    _dumps([r.__dict__ for r in mode_result.retrieved]), mode_result.answer,
+                    _dumps(mode_result.contexts), _dumps(mode_result.metrics), result.diagnosis,
+                    result.diagnosis_label, result.diagnosis_reason, _dumps(result.evidence_notes),
+                    _dumps(result.recommendation) if result.recommendation else None, mode_result.latency_ms,
+                    mode_result.estimated_cost, mode_result.error,
+                ))
+        with self._write_lock, self._connect() as conn:
+            conn.execute("DELETE FROM evaluation_results WHERE run_id = ?", (run_id,))
+            conn.executemany("INSERT INTO evaluation_results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+
+    def get_results(self, run_id: str) -> list[QuestionResult]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT * FROM evaluation_results WHERE run_id = ? ORDER BY rowid", (run_id,)).fetchall()
+        grouped: dict[str, QuestionResult] = {}
+        for r in rows:
+            mode_result = ModeResult(
+                mode=r["mode"], passed=None if r["passed"] is None else bool(r["passed"]),
+                metrics=json.loads(r["metrics_json"] or "{}"),
+                retrieved=[RetrievedChunk(**x) for x in json.loads(r["retrieved_json"] or "[]")],
+                answer=r["generated_answer"], contexts=json.loads(r["contexts_json"] or "[]"),
+                latency_ms=r["latency_ms"], estimated_cost=r["estimated_cost"], error=r["error"],
+            )
+            entry = grouped.get(r["question_id"])
+            if entry is None:
+                entry = QuestionResult(
+                    question_id=r["question_id"], modes={}, diagnosis=r["diagnosis"],
+                    diagnosis_label=r["diagnosis_label"], diagnosis_reason=r["diagnosis_reason"],
+                    evidence_notes=json.loads(r["evidence_notes_json"] or "[]"),
+                    recommendation=json.loads(r["recommendation_json"]) if r["recommendation_json"] else None,
+                )
+                grouped[r["question_id"]] = entry
+            entry.modes[r["mode"]] = mode_result
+        return list(grouped.values())
