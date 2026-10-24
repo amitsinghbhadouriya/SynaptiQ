@@ -82,3 +82,46 @@ export default function Hero({ onLaunch }) {
         <p className="hero__tagline">{TAGLINE}</p>
         <p className="hero__sub">
           SynaptiQ isolates your retriever, your generator, and the combined RAG pipeline. It identifies exactly why an
+          answer degraded, recommends one targeted parameter change, and verifies whether the fix truly improved performance.
+        </p>
+
+        <div className="hero__actions">
+          <CtaButton onClick={onLaunch} className="cursor-target" data-cursor-label="Launch">
+            Launch Dashboard →
+          </CtaButton>
+          <CtaButton variant="secondary" onClick={() => scrollToId('loop')} className="cursor-target" data-cursor-label="How it works">
+            Explore Architecture
+          </CtaButton>
+        </div>
+
+        <div className="hero__facts-grid">
+          {FACTS.map(fact => {
+            const IconComponent = fact.icon;
+            return (
+              <div key={fact.label} className="hero__fact-card cursor-target" data-cursor-label={fact.label}>
+                <div className="hero__fact-top">
+                  <div className="hero__fact-icon">
+                    <IconComponent size={18} />
+                  </div>
+                  <span className="hero__fact-val">{fact.value}</span>
+                </div>
+                <div className="hero__fact-label">{fact.label}</div>
+                <div className="hero__fact-detail">{fact.detail}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="hero__scroll cursor-target"
+        data-cursor-label="Scroll"
+        onClick={() => scrollToId('problem')}
+      >
+        <span>Explore Problem</span>
+        <ArrowDown size={14} className="hero__scroll-arrow" />
+      </button>
+    </section>
+  );
+}
