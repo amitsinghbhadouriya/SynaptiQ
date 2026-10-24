@@ -96,3 +96,53 @@ export default function TopBar({ tab, onTab, theme, onTheme, status, failing, on
         />
         <IconButton icon={Bell} label={failing ? `${failing} failing questions in the selected run` : 'No failing questions'} dot={failing > 0} onClick={onBell} />
         <div className="d-anchor">
+          <IconButton icon={Settings} label="Environment" active={menu === 'env'} onClick={() => setMenu(menu === 'env' ? null : 'env')} />
+          <Popover open={menu === 'env'} onClose={close} className="d-popover--env">
+            <h3>Environment</h3>
+            <dl className="d-env">
+              <dt>Embeddings</dt>
+              <dd>
+                {env.embedding?.backend} · {env.embedding?.model}
+                {env.embedding?.fallback_reason && <em>Fallback: {env.embedding.fallback_reason}</em>}
+              </dd>
+              <dt>Vector store</dt>
+              <dd>
+                {env.vector_store?.backend}
+                {env.vector_store?.fallback_reason && <em>Fallback: {env.vector_store.fallback_reason}</em>}
+              </dd>
+              <dt>Generator</dt>
+              <dd>
+                {env.llm?.provider} · {env.llm?.model}
+                {env.llm?.fallback_reason && <em>Fallback: {env.llm.fallback_reason}</em>}
+              </dd>
+              <dt>Ragas</dt>
+              <dd>{env.ragas?.available ? `available (v${env.ragas.version})` : `unavailable${env.ragas?.error ? ` — ${env.ragas.error}` : ''}`}</dd>
+              <dt>Host</dt>
+              <dd>{mode === 'streamlit' ? 'Streamlit component' : 'FastAPI website'}</dd>
+            </dl>
+          </Popover>
+        </div>
+        <div className="d-anchor">
+          <button type="button" className="d-user" onClick={() => setMenu(menu === 'user' ? null : 'user')} aria-expanded={menu === 'user'}>
+            <span className="d-user__avatar">SQ</span>
+            <span className="d-user__name">Local workspace</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          <Popover open={menu === 'user'} onClose={close} className="d-popover--menu">
+            <button type="button" onClick={() => { close(); onNavigate('home'); }}>
+              <House size={15} aria-hidden="true" /> Landing page
+            </button>
+            {mode === 'streamlit' && (
+              <button type="button" onClick={() => { close(); onNavigate('workbench'); }}>
+                <Wrench size={15} aria-hidden="true" /> Workbench (review &amp; tables)
+              </button>
+            )}
+            <button type="button" onClick={() => { close(); onDemo(); }}>
+              <Sparkles size={15} aria-hidden="true" /> Load demo workspace
+            </button>
+          </Popover>
+        </div>
+      </div>
+    </header>
+  );
+}
