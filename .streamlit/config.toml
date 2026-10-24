@@ -1,0 +1,11 @@
+[server]
+maxUploadSize = 20
+maxMessageSize = 200
+runOnSave = false
+# The file watcher inspects every imported module; with transformers loaded that is slow and
+# floods the log with optional-dependency tracebacks. Restart the app after editing code instead.
+fileWatcherType = "none"
+
+[browser]
+gatherUsageStats = false
+
