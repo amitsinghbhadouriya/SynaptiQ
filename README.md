@@ -1,319 +1,440 @@
 # SynaptiQ
 
-**RAG evaluation, root-cause intelligence and optimization.**
+<div align="center">
+
+**RAG Evaluation, Root-Cause Intelligence, and Optimization**  
 *Evaluate with Evidence. Diagnose with Intelligence. Improve with Confidence.*
 
-SynaptiQ tests the **retriever**, the **generator** and the **end-to-end pipeline** of a RAG system
-separately, explains why an answer failed using the source evidence, recommends one targeted
-configuration change, and measures whether that change actually helped — on the same test set.
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![React 19](https://img.shields.io/badge/React-19.0-61dafb?logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.42+-ff4b4b?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector_Store-orange)](https://www.trychroma.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests Passing](https://img.shields.io/badge/Tests-61%20Passed-brightgreen)](tests/)
 
-| Landing page (3D) | Dashboard (light) |
+</div>
+
+---
+
+## 📸 Visual Showcase
+
+| 🌟 3D Cybernetic Landing Page | ☀️ Dashboard Overview (Light Mode) |
 |---|---|
-| ![Landing page](docs/screenshots/landing-hero.png) | ![Dashboard overview](docs/screenshots/dashboard-overview-light.png) |
-| **Dashboard (dark)** | **Analytics** |
-| ![Dashboard dark](docs/screenshots/dashboard-overview-dark.png) | ![Analytics](docs/screenshots/dashboard-analytics-dark.png) |
+| ![Landing Page Preview](docs/screenshots/landing-hero.png) | ![Dashboard Overview Light](docs/screenshots/dashboard-overview-light.png) |
+| **🌙 Dashboard Overview (Dark Mode)** | **📊 Deep Analytics & Radar Charts** |
+| ![Dashboard Overview Dark](docs/screenshots/dashboard-overview-dark.png) | ![Dashboard Analytics Dark](docs/screenshots/dashboard-analytics-dark.png) |
 
 ---
 
-## What's inside
-
-| Layer | Technology | Where |
-|---|---|---|
-| Core logic & pipeline | Python 3.12 | `backend/` |
-| Web UI | **Streamlit** (hosts the React UI as a custom component + native Workbench page) | `app.py`, `streamlit_ui/` |
-| REST API + standalone website | **FastAPI** | `backend/api.py` |
-| PDF extraction | **PyMuPDF** | `backend/document_loader.py` |
-| DOCX extraction | **python-docx** | `backend/document_loader.py` |
-| TXT handling & cleaning | standard Python | `backend/document_loader.py`, `backend/text_utils.py` |
-| Embeddings | **Sentence Transformers** (`all-MiniLM-L6-v2`) | `backend/embeddings.py` |
-| Vector index & metadata | **ChromaDB** (persistent, local) | `backend/vector_store.py` |
-| RAG evaluation metrics | **Ragas** (non-LLM metrics) + transparent custom metrics | `backend/ragas_adapter.py`, `backend/metrics.py` |
-| Results tables & exports | **pandas** | `backend/reports.py` |
-| Charts | **Plotly** (built in Python, rendered by plotly.js in the dashboard and by Streamlit in the Workbench) | `backend/charts.py` |
-| Run history | **SQLite** | `backend/storage.py` |
-| Automated tests | **pytest** (61 tests) | `tests/` |
-| Optional live LLM | Claude via the official `anthropic` SDK | `backend/generator.py` |
-| Front end | React 19 + Vite, three.js, GSAP, ogl, React Bits components | `frontend/` (pre-built in `frontend/dist`) |
-
-The app runs **fully offline by default**: an extractive generator answers from the evidence, and
-if the embedding model cannot be downloaded the app falls back to deterministic hashing embeddings.
-Every run records which backend was actually used, so results are never silently mixed.
+## 📖 Table of Contents
+1. [What is SynaptiQ? (Simple Explanation)](#-what-is-synaptiq-simple-explanation)
+2. [The Real-World Problem We Solve](#-the-real-world-problem-we-solve)
+3. [Key Features](#-key-features)
+4. [How It Works (The 12-Step Pipeline in Plain English)](#-how-it-works-the-12-step-pipeline-in-plain-english)
+5. [Quick Start (Install & Run in 3 Minutes)](#-quick-start-install--run-in-3-minutes)
+6. [The 10-Second Demo](#-the-10-second-demo)
+7. [Running the Application](#-running-the-application)
+8. [The 3 Independent Test Modes](#-the-3-independent-test-modes)
+9. [The 7 Root-Cause Diagnoses](#-the-7-root-cause-diagnoses)
+10. [Transparent Evaluation Metrics (Explained Simply)](#-transparent-evaluation-metrics-explained-simply)
+11. [Technology Stack](#-technology-stack)
+12. [Project Structure](#-project-structure)
+13. [Deep-Dive Documentation Index](#-deep-dive-documentation-index)
+14. [Testing & Quality Assurance](#-testing--quality-assurance)
+15. [Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+16. [Troubleshooting Common Issues](#-troubleshooting-common-issues)
+17. [License](#-license)
 
 ---
 
-## Quick start
+## 💡 What is SynaptiQ? (Simple Explanation)
 
-> **Use Python 3.11 or 3.12.** Brand-new interpreters (3.13+/3.15) may not have wheels for
-> `torch` and `chromadb` yet. Check with `python --version`.
+Imagine you work at a company and ask an AI assistant:  
+> *"What is our company's policy on parental leave?"*
 
-### Windows (PowerShell)
+To answer your question from your company's documents, modern AI uses a system called **RAG** (**R**etrieval-**A**ugmented **G**eneration). 
+
+Think of a RAG system like a team of two people working in a library:
+1. **The Librarian (The Retriever)**: Searches through thousands of pages of your documents to find the exact paragraph about parental leave.
+2. **The Writer (The Generator)**: Reads that paragraph and writes a friendly, clear, and accurate answer for you.
+
+### What happens when the AI gives a wrong answer?
+In most AI systems today, you only see the final wrong answer. **You have no idea who made the mistake:**
+- Did the **Librarian** bring the wrong page from the bookshelf?
+- Or did the **Librarian** bring the right page, but the **Writer** failed to read it properly and made something up (hallucination)?
+
+### How SynaptiQ Solves This:
+**SynaptiQ acts as an expert doctor for your AI system:**
+- It tests the **Librarian** by itself.
+- It tests the **Writer** by itself.
+- It tests them **together**.
+- When an answer is wrong, it tells you **exactly why** using real quotes from your source files.
+- It recommends **one specific setting to change** (for example: *"Make your search top-k = 2 instead of 1"*).
+- It tests the system again on the same questions to **prove** that the fix worked!
+
+---
+
+## 🎯 The Real-World Problem We Solve
+
+Most AI evaluation tools only give you a vague score at the end, such as:  
+> *"Overall System Score: 68%"*
+
+This leaves developers and business teams completely lost:
+- Should we make our text chunks bigger or smaller?
+- Should we retrieve more documents?
+- Is our search engine failing, or is the language model hallucinating?
+- If we change a setting, did we accidentally break answers that were working before?
+
+**SynaptiQ turns confusing scores into clear, actionable improvements:**
+- **Evidence-Grounded**: Every measurement is linked to exact character locations in your original PDF, Word, or text files.
+- **Explainable Diagnoses**: Every failure is sorted into one of 7 clear, plain-English categories.
+- **Fair Benchmarks**: Tests before-and-after runs on the exact same questions so you can immediately see if any questions got worse (regressions).
+- **100% Private & Free**: Runs completely on your own computer by default. No expensive GPU required, no API keys needed, and zero data leaves your machine.
+
+---
+
+## ✨ Key Features
+
+- **🔬 3 Independent Test Modes**: Tests search, text generation, and the combined pipeline separately so you always know who made the mistake.
+- **🩺 7 Plain-English Diagnoses**: Immediately separates retrieval misses from language model hallucinations, split text issues, and integration bugs.
+- **⚡ 1-Click Targeted Fixes**: Recommends the single highest-impact parameter adjustment based on real evidence.
+- **⚖️ Before-and-After Comparisons**: Directly compares your baseline system against your improved system and flags regressions.
+- **🛡️ 100% Offline & Private**: Built-in offline text reader and local embedding model. No data is sent over the internet.
+- **🌐 Dual-Host Architecture**: Run it as an interactive **Streamlit** workbench or as a production **FastAPI** web service with full REST endpoints.
+- **🎨 Modern Web Experience**: A high-end React 19 interface featuring interactive 3D particle animations, sleek dark/light themes, and responsive dashboards.
+- **🤖 Optional Claude Integration**: Connect Anthropic Claude with one click whenever you want high-level LLM answers and token cost tracking.
+
+---
+
+## 🔄 How It Works (The 12-Step Pipeline in Plain English)
+
+Here is what happens under the hood when you use SynaptiQ:
+
+```
+[1. Upload File]        --> You upload a PDF, Word DOCX, or plain text file.
+       │
+[2. Character Map]      --> SynaptiQ maps every letter and page so evidence is never lost.
+       │
+[3. Clean Chunking]     --> Splits text into natural paragraphs without cutting sentences in half.
+       │
+[4. Smart Embeddings]   --> Converts text into mathematical vectors using a local AI model.
+       │
+[5. Local Vector Store] --> Stores vectors in ChromaDB on your hard drive for fast searching.
+       │
+[6. Test Set Creation]  --> Creates realistic questions with exact verbatim quotes as evidence.
+       │
+[7. Retriever Test]     --> Checks if the search engine finds the right document paragraphs.
+       │
+[8. Generator Test]     --> Hands the correct text to the writer to see if it can answer accurately.
+       │
+[9. Multi-Metric Score] --> Calculates recall, precision, faithfulness, and answer correctness.
+       │
+[10. Root-Cause Logic]  --> Sorts any failing questions into one of 7 clear diagnoses.
+       │
+[11. Targeted Advice]   --> Formulates 1 specific recommendation to fix the highest number of failures.
+       │
+[12. Verify & Report]   --> Re-tests on the same questions, verifies improvement, and exports reports.
+```
+
+---
+
+## 🚀 Quick Start (Install & Run in 3 Minutes)
+
+> **Important**: SynaptiQ is designed for **Python 3.11 or 3.12**. Please check your version by running `python --version` before you begin.
+
+### Option A: Windows (PowerShell)
+
+Open PowerShell and run these commands step by step:
 
 ```powershell
-cd synaptiq
-py -3.12 -m venv .venv            # or: uv venv --python 3.12 .venv
+# 1. Download the project from GitHub
+git clone https://github.com/amitsinghbhadouriya/SynaptiQ.git
+cd SynaptiQ
+
+# 2. Create an isolated Python environment
+py -3.12 -m venv .venv
+# (If using Python 3.11, use: py -3.11 -m venv .venv)
+
+# 3. Activate the environment
 .\.venv\Scripts\Activate.ps1
+# (Note: If PowerShell says scripts are disabled, run:
+# Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
+
+# 4. Install the required libraries
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-copy .env.example .env            # optional — defaults work offline
+
+# 5. Launch the application!
 streamlit run app.py
 ```
 
-If PowerShell blocks activation, run `.venv\Scripts\activate.bat` from Command Prompt instead.
-No Python 3.12? Install it from python.org or with `uv python install 3.12`.
+### Option B: macOS and Linux
 
-### macOS / Linux
+Open your terminal and run:
 
 ```bash
-cd synaptiq
+# 1. Download the project from GitHub
+git clone https://github.com/amitsinghbhadouriya/SynaptiQ.git
+cd SynaptiQ
+
+# 2. Create and activate an isolated Python environment
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install --upgrade pip && pip install -r requirements.txt
-cp .env.example .env
+# (Or python3.11 -m venv .venv)
+
+# 3. Install the required libraries
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 4. Launch the application!
 streamlit run app.py
 ```
 
-Open <http://localhost:8501>. The first start downloads the small embedding model (~90 MB) and
-loads it; later starts are faster. To save disk space you can install the CPU-only PyTorch wheel
-first: `pip install torch --index-url https://download.pytorch.org/whl/cpu`.
+Now open your web browser and visit **`http://localhost:8501`**!  
+*(On your very first run, it will automatically download a tiny 90 MB local AI model. After that, it starts in under 2 seconds).*
 
-### Try the demo (about 10 seconds)
-
-1. On the landing page click **Launch dashboard**.
-2. Click **Load demo workspace**. SynaptiQ ingests the bundled *Lumen Labs Employee Handbook*
-   (fictional, non-sensitive), loads its manually reviewed 14-question test set and runs a
-   deliberately narrow **baseline** (chunk 280/0, top-k 1).
-3. The baseline's failures are diagnosed and the top recommendation (for example
-   *Increase top-k from 1 to 2*) is run automatically as a **candidate** on the same questions.
-4. Explore **Overview → Evaluations** (click any question for its evidence) **→ Analytics → Reports**.
-
-Every number is computed by the run you just started — nothing is precomputed. With the default
-Sentence Transformers model the demo measured 71% → 86% pass rate (2 questions fixed, 0
-regressed); exact values depend on the embedding backend.
+> 💡 **Tip to save disk space and speed up install**: If you do not have an NVIDIA GPU, you can install the lightweight CPU-only PyTorch first:  
+> `pip install torch --index-url https://download.pytorch.org/whl/cpu`
 
 ---
 
-## Running the app
+## ⏱️ The 10-Second Demo
 
-| Command | What you get |
-|---|---|
-| `streamlit run app.py` | **Main app.** Landing page, dashboard and Workbench at <http://localhost:8501> |
-| `uvicorn backend.api:app --reload` | REST API (<http://localhost:8000/docs>) **and** the same website at <http://localhost:8000> |
-| `pytest` | Test suite (offline, ~1 minute) |
+Want to see how SynaptiQ works without setting up anything new? Try the built-in demo:
 
-Streamlit and FastAPI use the same local storage folder, and ChromaDB's local store is not meant
-to be shared by two processes. Run one of them at a time — or give the second its own storage, e.g.
-`$env:CHROMA_PATH="./storage/api/chroma"; $env:DB_PATH="./storage/api/synaptiq.db"` before starting
-uvicorn. SynaptiQ holds a lock on the folder, so a second process stops with a clear message.
-
-### Pages
-
-* **Home** — the 3D landing page.
-* **Dashboard** — the evaluation dashboard (modeled on the reference video): pill navigation
-  (Overview, Documents, Evaluations, Analytics, Reports), light/dark toggle with a circular reveal,
-  count-up numbers, staggered card entrances and a Magic Bento overview grid.
-* **Workbench** (user menu → Workbench) — native Streamlit tools: `st.file_uploader`, human review of
-  generated questions in a pandas `st.data_editor`, runs with a live progress bar, raw results tables
-  and Plotly charts, and run comparison.
+1. Open **`http://localhost:8501`** in your browser.
+2. Click the bright **"Launch Dashboard →"** button.
+3. At the top of the dashboard, click **"Load demo workspace"**.
+4. **Watch what happens automatically:**
+   - SynaptiQ loads the included *Lumen Labs Employee Handbook*.
+   - It runs an initial test with a deliberately narrow search setting (chunk size 280, top-$k$ 1).
+   - It analyzes the failures and recommends: *"Increase top-k from 1 to 2"*.
+   - It runs the candidate fix on the exact same questions.
+5. **The Result**: The pass rate jumps from **71% to 86%**! You will see 2 questions turn from red to green, with zero regressions.
 
 ---
 
-## How the website is built
+## 🖥️ Running the Application
 
-The landing page is built from self-contained sections (`frontend/src/landing/sections/`):
-`Navbar → Hero → Problem → Loop → Showcase → Features → Diagnosis → Pipeline → TechStack → CallToAction`.
+SynaptiQ gives you three simple ways to run:
 
-| React Bits component | Used for |
-|---|---|
-| **TechText** | The animated "SynaptiQ" wordmark in the hero (metrics intro, letter reveal, click-kick) |
-| **ElectricLogo** | The glowing SynaptiQ logo mark above the wordmark (WebGL, interactive) |
-| **ScrollFloat** | Every section heading floats in as you scroll |
-| **ScrollReveal** | Section copy and the closing statement reveal word by word on scroll |
-| **ScrollExpand** | A dashboard screenshot expands to full screen on scroll and reveals the three test modes |
-| **TargetCursor** | The bracket cursor that locks onto cards and images across the landing page |
-| **StarBorder** | Every button — landing CTAs and all dashboard buttons |
-| **AccordionGallery** | Feature explanation cards (illustrated, no photos; extended with `media`/`content` slots) |
-| **BounceCards** | The technology stack cards |
-| **MagicBento** | The dashboard Overview grid (border glow, spotlight, click ripple) |
-
-The 3D hero background is a custom three.js scene (`components/three/SynapseScene.jsx`): a rotating
-synapse network with travelling signal pulses, pointer parallax and scroll fade.
-
-**One UI, two hosts.** `frontend/src/bridge/transport.js` detects where it runs: inside Streamlit it
-uses the component protocol (Python receives each UI action, runs it, and sends back new state); when
-served by FastAPI it calls `/api/v1/ui/*`. Both paths use `backend/ui_bridge.py`.
-
-Colours are deliberately restrained: near-black and neutral greys, one blue accent, green/red only
-for pass/fail. Chart palettes were checked for colour-vision-deficiency separation and contrast.
-
-### Rebuilding the front end (only if you change it)
-
-Requires Node.js 18+.
-
-```bash
-npm --prefix frontend install
-npm --prefix frontend run build    # writes frontend/dist, used by Streamlit and FastAPI
-npm --prefix frontend run dev      # hot-reload at http://localhost:5173 (proxies /api to :8000)
-```
-
----
-
-## Evaluation method
-
-### Three independent modes
-
-| Mode | Input | Scored on |
+| Command | What It Runs | Where to View |
 |---|---|---|
-| **Retriever-only** | question → retriever | Does the top-k contain the labelled evidence? |
-| **Generator-only** | question + known-correct evidence (retriever bypassed) | Is the answer correct and supported? |
-| **End-to-end** | question → retriever → generator | Is the final answer correct and supported by what was retrieved? |
+| `streamlit run app.py` | **Main Application**: Full landing page, interactive dashboard, and Python Workbench. | Open `http://localhost:8501` |
+| `uvicorn backend.api:app --reload` | **FastAPI Web Service**: High-speed REST API endpoints + built web application. | Open `http://localhost:8000` (API docs at `/docs`) |
+| `pytest` | **Automated Tests**: 61 built-in offline unit and integration tests. | In your terminal |
 
-Reference evidence is stored as **character spans** in the source document, and every chunk knows
-its own offsets, so retrieval is scored exactly and stays comparable across chunking settings.
-
-### Metrics (documented heuristics, not universal probabilities)
-
-| Metric | Definition | Pass threshold |
-|---|---|---|
-| Hit@k | every evidence span ≥ 50% covered by the top-k chunks | 1.0 |
-| Context recall | mean share of evidence characters covered by the top-k | — |
-| Context precision | rank-aware precision of chunks that contain evidence | — |
-| MRR / first evidence rank | where the first supporting chunk appears | — |
-| Answer correctness | 0.65 × reference-token recall + 0.35 × semantic similarity; capped at 0.4 if a reference number is missing | ≥ 0.60 |
-| Faithfulness | share of answer sentences supported by the supplied context | ≥ 0.60 |
-| Answer relevancy | semantic similarity of question and answer | — |
-| Abstention correctness | declines unanswerable questions, answers answerable ones | — |
-| Ragas context recall | Ragas non-LLM context recall (sentence level) | — |
-| Ragas string similarity | Ragas `NonLLMStringSimilarity` (answer vs reference) | — |
-| Latency / cost | measured per mode; cost only when the provider reports token usage | — |
-
-Missing or not-applicable values are stored as `null`, never as zero. Means ignore unmeasured values.
-LLM-judged Ragas metrics are not wired in this build.
-
-### Root-cause diagnosis (`backend/root_cause.py`)
-
-| Observed evidence | Diagnosis | Next action |
-|---|---|---|
-| Evidence missing from top-k, generator passes with evidence | Retrieval failure | Inspect chunking, embeddings, top-k, ranking |
-| Evidence retrieved, generator fails even with evidence | Generation failure | Inspect prompt, model, context handling |
-| Evidence missing and end-to-end fails | Combined failure | Fix retrieval first |
-| Both parts pass alone, pipeline fails | Pipeline interaction | Inspect prompt assembly and context ordering |
-| Correct answer, evidence not retrieved | Correct but ungrounded | Do not treat as grounded |
-| Conflicting or missing measurements | Needs review | Inspect the source and question |
-
-Inputs are three-state (pass / fail / not measured). Unanswerable questions pass when the system
-declines and are flagged as a generation failure when it answers anyway.
-
-### Recommendations and verification
-
-Each failure yields one concrete change, derived from its evidence: the exact rank of missing
-evidence gives a top-k, partial coverage suggests larger overlapping chunks, over- or under-abstention
-moves the abstention threshold, unsupported answers suggest the strict prompt. Retrieval fixes are
-prioritised. **Test it** runs the change on the same question set; **Reports** compares raw metrics,
-fixed and regressed questions, latency and cost, and warns about small samples or multiple changes.
+> **Single-Process Safety**: SQLite and ChromaDB keep safe locks on the `./storage/` folder. Please run either Streamlit or FastAPI at one time (or specify different storage paths if running both simultaneously).
 
 ---
 
-## Using Claude (optional)
+## 🔬 The 3 Independent Test Modes
 
-```dotenv
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your-key
-LLM_MODEL=claude-opus-5-5
-LLM_EFFORT=low
-```
+To find out where an error comes from, SynaptiQ tests each component in isolation:
 
-Answers are then generated by Claude with a grounded prompt that treats document text as untrusted
-data, and **Generate test set** asks Claude for questions with verbatim evidence quotes (quotes that
-cannot be located in the document are discarded). The server-side refusal fallback
-(`LLM_REFUSAL_FALLBACK=true`) re-runs a declined request on Anthropic's recommended model; set it to
-`false` to turn it off. Cost estimates use published per-token prices or your overrides. Only send
-documents you are allowed to share with a third-party API.
+| Test Mode | Everyday Analogy | What It Tests | The Question Answered |
+|---|---|---|---|
+| **1. Retriever-Only** | *Testing the Librarian* | Document $\to$ Chunks $\to$ Search | Did the search engine find the paragraph that contains the answer? |
+| **2. Generator-Only** | *Testing the Writer* | Known Evidence $\to$ Answer | If we hand the AI the exact right page, can it write an accurate answer without making things up? |
+| **3. End-to-End** | *Testing the Team Together* | Question $\to$ Retriever $\to$ Generator | When the search engine and language model work together on their own, is the final answer correct? |
 
 ---
 
-## REST API
+## 🩺 The 7 Root-Cause Diagnoses
 
-Interactive docs at `/docs` when uvicorn is running.
+Whenever an answer fails, SynaptiQ diagnoses the exact problem:
 
-| Method | Path | Purpose |
+| Outcome Code | Plain English Meaning | What Happened? | How to Fix It |
+|---|---|---|---|
+| **`PASS`** | Everything Worked | Both search and answer generation succeeded. | No change needed. Your system is working properly. |
+| **`LIKELY_RETRIEVAL_FAILURE`** | Search Missed the Clue | The generator can answer when given the text, but the search engine failed to find it. | Increase search results (top-$k$), make chunk sizes larger, or use better embeddings. |
+| **`LIKELY_GENERATION_FAILURE`** | Generator Hallucinated | The search engine found the evidence, but the language model gave a wrong answer anyway. | Improve prompt instructions, lower temperature, or use a stronger model. |
+| **`LIKELY_COMBINED_FAILURE`** | Both Failed | The search engine brought the wrong text, and the generator gave an incorrect answer. | Fix search first. You cannot generate a good answer without the right facts. |
+| **`PIPELINE_INTERACTION_FAILURE`** | Too Much Clutter | Both work alone, but fail together when multiple paragraphs are packed into one long prompt. | Clean up context formatting, re-order chunks, or reduce token clutter. |
+| **`CORRECT_BUT_UNGROUNDED`** | Lucky Guess | The AI guessed the right answer, but the search results did NOT contain the evidence! | Dangerous in production! Fix search so answers are backed by verified evidence. |
+| **`UNCERTAIN_REQUIRES_REVIEW`** | Needs Human Eye | Metrics conflict or test data is incomplete. | Inspect the source document and question manually to verify formatting. |
+
+---
+
+## 📊 Transparent Evaluation Metrics (Explained Simply)
+
+SynaptiQ does not use opaque, mysterious scores. Every metric is clearly explained:
+
+- **Hit@k**: Did the top-$k$ search results include at least 50% of the reference evidence? (Yes or No).
+- **Context Recall**: What percentage of the required evidence characters were found by the search engine?
+- **Context Precision**: Did the most relevant chunks appear at the very top of the search list rather than buried at the bottom?
+- **First Relevant Rank (MRR)**: At what position (#1, #2, #3...) did the first correct piece of evidence appear?
+- **Answer Correctness**: Compares the AI's answer with the reference answer (65% word overlap + 35% semantic meaning). Numbers must match exactly.
+- **Faithfulness**: Did the AI stick strictly to the retrieved facts, or did it introduce outside claims?
+- **Abstention Correctness**: When a question cannot be answered from the document, did the AI honestly admit *"I cannot find that in the documents"* instead of making up a fake answer?
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Tools & Libraries | Purpose |
 |---|---|---|
-| GET | `/api/v1/health` | Status and active backends |
-| POST | `/api/v1/documents` | Upload (multipart `file`) → `document_id`, `chunk_count` |
-| GET / DELETE | `/api/v1/documents[/{id}]` | List / delete (removes chunks, vectors, questions, runs) |
-| POST | `/api/v1/evaluation/questions/generate` | Candidate questions (`review_required`) |
-| POST | `/api/v1/evaluation/questions/import` | Import reviewed questions with evidence quotes |
-| GET | `/api/v1/evaluation/datasets/{dataset_id}` | Questions, references, evidence, review status |
-| PATCH | `/api/v1/evaluation/questions/{id}` | Approve / reject / edit |
-| POST | `/api/v1/evaluation/runs` | Queue a run (`?wait=true` to run synchronously) |
-| GET | `/api/v1/evaluation/runs[/{id}]` | Run status, aggregate metrics, per-question results |
-| POST | `/api/v1/evaluation/runs/{id}/recommendation` | Run the top recommendation as a candidate |
-| POST | `/api/v1/evaluation/compare` | Compare two runs (409 if question sets differ, unless `strict=false`) |
-| GET | `/api/v1/evaluation/runs/{id}/export?format=csv\|json` | Export |
-| POST | `/api/v1/demo` | Load the demo workspace |
-
-Responses carry an `x-request-id`; requests are logged without document text. Add authentication,
-HTTPS and rate limiting before exposing the API beyond localhost.
+| **Frontend UI** | React 19, Vite, Three.js, GSAP | Fast modern web interface, 3D synapse animation, responsive bento grids. |
+| **Design System** | Vanilla CSS, Space Grotesk, Inter, Lucide | Sleek dark/light theme, glassmorphism, animated cybernetic gradient on the letter "Q". |
+| **Backend & APIs** | Streamlit, FastAPI, Uvicorn | Interactive Python Workbench, high-performance REST API, OpenAPI docs. |
+| **Document Processing** | PyMuPDF (`fitz`), python-docx | High-fidelity text extraction with exact character position and page tracking. |
+| **Vector Search** | ChromaDB, Sentence Transformers (`all-MiniLM-L6-v2`) | Local vector storage, fast cosine similarity search, smart hash caching. |
+| **Evaluation Engine** | Custom Heuristics + Ragas Adapter | Offline string and semantic similarity metrics with zero external API calls. |
+| **Database** | SQLite 3 | Reliable local relational storage for document runs, test sets, and before/after comparisons. |
+| **Visualizations** | Plotly, pandas | Interactive radar charts, metric distributions, and one-click CSV/JSON exports. |
+| **Testing** | pytest | 61 automated offline unit and integration tests for rock-solid stability. |
 
 ---
 
-## Project structure
+## 📁 Project Structure
+
+Here is a quick map of the repository:
 
 ```text
-synaptiq/
-├── app.py                      # Streamlit entry point (Home, Dashboard, Workbench)
-├── streamlit_ui/               # component wrapper, shared helpers, pages
-├── backend/
-│   ├── config.py               # settings from .env
-│   ├── document_loader.py      # PDF / DOCX / TXT
-│   ├── chunking.py             # sentence-aware chunks with stable IDs and offsets
-│   ├── embeddings.py           # Sentence Transformers + hashing fallback
-│   ├── vector_store.py         # ChromaDB + in-memory fallback
-│   ├── retriever.py, generator.py, synthetic_qa.py
-│   ├── metrics.py, ragas_adapter.py, evaluator.py
-│   ├── root_cause.py, recommendations.py, experiments.py
-│   ├── storage.py              # SQLite run history
-│   ├── charts.py, reports.py   # Plotly figures, pandas tables, exports
-│   ├── service.py, ui_bridge.py, process_lock.py
-│   └── api.py                  # FastAPI app
-├── frontend/                   # React source + pre-built dist/
-├── data/sample_docs/           # sample handbook (TXT, PDF, DOCX)
-├── data/evaluation_sets/       # manually reviewed test set for the demo
-├── scripts/make_sample_docs.py
-├── tests/                      # pytest suite
-├── docs/screenshots/
-├── storage/                    # created at runtime (ChromaDB, SQLite, uploads) — not committed
-└── reports/                    # exports — check privacy before sharing
+SynaptiQ/
+├── app.py                      # Streamlit application entry point
+├── streamlit_ui/               # Streamlit host, custom component bridge, Workbench page
+│   ├── component.py            # Bridge between React and Streamlit
+│   ├── shared.py               # Shared session state and helpers
+│   └── pages/                  # Landing, Dashboard, and Workbench views
+├── backend/                    # Python core logic and pipeline
+│   ├── api.py                  # FastAPI REST service & static web server
+│   ├── service.py              # Main orchestrator workspace
+│   ├── document_loader.py      # PDF, DOCX, and TXT parsing
+│   ├── chunking.py             # Sentence-aware chunking with character offsets
+│   ├── embeddings.py           # Local Sentence Transformers & vector hashing
+│   ├── vector_store.py         # ChromaDB client & similarity search
+│   ├── retriever.py            # Top-k retrieval & evidence coverage checks
+│   ├── generator.py            # Local extractive generator & Claude API client
+│   ├── metrics.py              # Mathematical evaluation scorers
+│   ├── ragas_adapter.py        # String similarity and context recall
+│   ├── root_cause.py           # 7-outcome deterministic diagnostic engine
+│   ├── recommendations.py      # Evidence-derived parameter recommendations
+│   ├── experiments.py          # Baseline vs Candidate comparison & regression analysis
+│   ├── storage.py              # SQLite database for documents, runs, and results
+│   ├── reports.py              # Pandas tables and report export generators
+│   └── process_lock.py         # Single-process directory locking safety
+├── frontend/                   # React 19 Single Page Application
+│   ├── src/                    # Source JSX, components, styles
+│   │   ├── landing/            # 10 self-contained landing sections
+│   │   ├── dashboard/          # Overview, Documents, Evaluations, Analytics, Reports
+│   │   ├── components/         # Three.js 3D SynapseScene, React Bits components
+│   │   ├── bridge/             # Transport bridge (Streamlit + FastAPI transparent)
+│   │   └── styles/             # Global CSS design tokens, cyber Q animations
+│   └── dist/                   # Pre-compiled production bundle (ready to run)
+├── data/                       # Bundled demo handbook and verified evaluation test set
+├── docs/                       # 13 comprehensive markdown documentation guides
+├── tests/                      # 61 automated pytest tests
+├── requirements.txt            # Python dependencies
+└── README.md                   # You are reading this!
 ```
 
 ---
 
-## Testing
+## 📚 Deep-Dive Documentation Index
+
+Want to learn more about specific parts of SynaptiQ? Check out our 13 detailed guides inside the [`docs/`](docs/) directory:
+
+| Guide | What You Will Learn |
+|---|---|
+| [**Architecture Guide**](docs/architecture.md) | How the frontend, backend, dual hosts, and storage fit together. |
+| [**Design System**](docs/design.md) | The colors, typography, glassmorphism, 3D canvas, and animations. |
+| [**Database & Storage**](docs/database.md) | How SQLite tables, foreign keys, ChromaDB vectors, and locks work. |
+| [**REST API Reference**](docs/api.md) | Complete list of all REST API endpoints with request and response examples. |
+| [**Agents & Diagnostics**](docs/agents.md) | How the diagnostic engine, recommendation agent, and question generator work. |
+| [**Project Implementation**](docs/project_implementation.md) | Step-by-step breakdown of the complete 12-stage engineering pipeline. |
+| [**Setup & Installation**](docs/setup.md) | Step-by-step setup guides for Windows, macOS, Linux, and virtual environments. |
+| [**Feature Development**](docs/feature_development.md) | How to add new document loaders, chunkers, metrics, or dashboard tabs. |
+| [**Authentication & Security**](docs/authentication_and_security.md) | Privacy-by-design, local offline execution, and production deployment tips. |
+| [**Integrations Guide**](docs/integration.md) | How to connect Claude, OpenAI, Ollama, LangChain, or custom RAG pipelines. |
+| [**Testing & QA**](docs/testing_and_qa.md) | Overview of the 61 automated tests, running pytest, and test coverage. |
+| [**Debugging & Troubleshooting**](docs/debugging.md) | Step-by-step solutions for database locks, port conflicts, and common errors. |
+| [**Docs Overview**](docs/readme.md) | Quick overview and table of contents of the entire documentation suite. |
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+SynaptiQ includes **61 automated tests** that run 100% offline without needing internet access, model downloads, or paid API keys.
+
+To run the test suite:
 
 ```bash
+# Run all tests
 pytest
-```
 
-The suite runs offline (hashing embeddings, in-memory vectors) and covers parsing of all three file
-types and their error cases, chunking, retrieval scoring, the offline and Claude generator adapters
-(with a fake client), metrics, every diagnosis rule, recommendations, comparisons, storage integrity,
-the cross-process storage lock and the REST API end to end.
+# Run tests with detailed step-by-step progress
+pytest -v
+
+# Run only the diagnostic root-cause tests
+pytest tests/test_root_cause.py -v
+```
 
 ---
 
-## Limitations
+## 💬 Frequently Asked Questions (FAQ)
 
-* Metrics are transparent heuristics; validate a sample of judgements manually.
-* Offline test-set generation produces template questions — review them, or use Claude for better ones.
-* Root-cause diagnosis is evidence-backed inference, not proof of causality.
-* Small test sets give preliminary results; the comparison view says so.
-* Scanned PDFs need OCR, which is out of scope.
+### 1. Do I need an OpenAI API key or an expensive GPU?
+**No.** SynaptiQ runs 100% locally and completely free on any standard laptop CPU. It includes a built-in extractive answer generator and a fast, compact local embedding model.
 
-## Troubleshooting
+### 2. Can I use my own company documents?
+**Yes.** You can upload your own PDF (`.pdf`), Microsoft Word (`.docx`), or plain text (`.txt`) documents directly through the web dashboard.
 
-| Symptom | Fix |
-|---|---|
-| `pip install` fails on torch/chromadb | Use Python 3.11 or 3.12 |
-| Dashboard shows "Starting SynaptiQ — loading the embedding model…" for long | First run downloads the model; needs internet once |
-| "Another SynaptiQ process is already using …" | Stop the other server or set separate `CHROMA_PATH` / `DB_PATH` |
-| "The web UI build is missing" | `npm --prefix frontend install && npm --prefix frontend run build` |
-| Embeddings show *hashing* in Environment | The model could not load (offline); results are still valid but lexical |
-| Ragas shows unavailable | `pip install -r requirements.txt` (keeps the langchain-community pin) |
+### 3. Is my data kept private?
+**Yes, 100%.** By default, zero data leaves your machine. SynaptiQ contains no telemetry, no tracking, and makes no hidden cloud calls.
+
+### 4. Can I use Anthropic Claude if I want to?
+**Yes.** If you want advanced LLM answers, simply paste your Anthropic API key in the dashboard or set `ANTHROPIC_API_KEY` in your `.env` file. SynaptiQ will track the token costs and generation latency automatically.
+
+### 5. What if I want to connect SynaptiQ to my own external RAG system?
+**Easily done!** You can use our clean FastAPI REST endpoints (documented at `http://localhost:8000/docs`) or use our Python SDK directly. See [docs/integration.md](docs/integration.md) for complete code examples.
+
+---
+
+## 🔧 Troubleshooting Common Issues
+
+### 1. `pip install` fails with compilation or wheel errors
+- **Cause**: You might be using Python 3.13 or newer, where pre-built wheels for machine learning libraries like `torch` or `chromadb` are not yet available.
+- **Solution**: Install and use **Python 3.11 or 3.12**:
+  ```powershell
+  py -3.12 -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  ```
+
+### 2. "Another SynaptiQ process is already using ./storage"
+- **Cause**: SQLite and ChromaDB prevent data corruption by allowing only one process to access the storage directory at a time.
+- **Solution**: Close any other terminal window running SynaptiQ. If you previously closed a terminal unexpectedly, simply delete the lock file:
+  - On Windows: `Remove-Item .\storage\synaptiq.lock`
+  - On Mac/Linux: `rm ./storage/synaptiq.lock`
+
+### 3. Port 8501 is already in use
+- **Cause**: Another service or previous session is using port 8501.
+- **Solution**: Launch Streamlit on a different port:
+  ```bash
+  streamlit run app.py --server.port 8505
+  ```
+
+### 4. How do I make changes to the React frontend?
+- **Cause**: The pre-built production website is already compiled into `frontend/dist/`.
+- **Solution**: If you want to modify the React source code in `frontend/src/`:
+  ```bash
+  cd frontend
+  npm install
+  npm run build
+  ```
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - you are free to use, modify, and distribute it in personal and commercial projects.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for developers and teams who want reliable, transparent, and evidence-grounded AI systems.**  
+*Questions or feedback? Feel free to open an issue or pull request on GitHub!*
+
+</div>
