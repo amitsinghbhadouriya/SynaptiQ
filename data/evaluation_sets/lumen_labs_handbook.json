@@ -31,3 +31,36 @@
       "reference_answer": "Primary caregivers are offered 18 weeks of fully paid parental leave.",
       "question_type": "numerical",
       "evidence_quotes": ["Primary caregivers are offered 18 weeks of fully paid parental leave."]
+    },
+    {
+      "question": "Which app is used to submit expense claims?",
+      "reference_answer": "Expense claims are submitted through the Ledgerly app with a photo of each receipt.",
+      "question_type": "factual",
+      "evidence_quotes": ["Expense claims are submitted through the Ledgerly app with a photo of each receipt."]
+    },
+    {
+      "question": "What should I do if my company laptop is stolen?",
+      "reference_answer": "Report it to the IT Service Desk within 24 hours so it can be locked remotely; a police report is required for stolen devices.",
+      "question_type": "multi_hop",
+      "evidence_quotes": [
+        "If a company laptop is lost or stolen, the employee must report it to the IT Service Desk within 24 hours so the device can be locked remotely.",
+        "A police report is required for stolen devices."
+      ]
+    },
+    {
+      "question": "What hardware budget does a new engineer get, and how often does it renew?",
+      "reference_answer": "New engineers receive a 2,500 euro hardware budget, which renews every three years.",
+      "question_type": "multi_hop",
+      "evidence_quotes": [
+        "Every new engineer receives a hardware budget of 2,500 euros for a laptop, monitor and accessories.",
+        "The hardware budget renews every three years, and older equipment may be kept after the renewal."
+      ]
+    },
+    {
+      "question": "How long can I work from another country, and who must approve a longer stay abroad?",
+      "reference_answer": "Working from another country is limited to 30 working days per year; stays longer than 10 consecutive working days need approval from the manager and People Operations.",
+      "question_type": "multi_hop",
+      "evidence_quotes": [
+        "Working from another country is limited to a maximum of 30 working days per calendar year.",
+        "Any stay abroad longer than 10 consecutive working days must be approved in advance by the employee's manager and the People Operations team."
+      ]
