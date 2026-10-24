@@ -108,3 +108,59 @@ export default function Problem() {
           })}
         </div>
 
+        {/* Live Failure Anatomy Inspector */}
+        <div className="failure-inspector">
+          <div className="failure-inspector__header">
+            <div className="failure-inspector__title">
+              <ActiveIcon size={18} style={{ color: activeDetail.color }} />
+              <span>Live Failure Autopsy: {activeDetail.badge}</span>
+            </div>
+            <span
+              className="failure-inspector__pill"
+              style={{ backgroundColor: `${activeDetail.color}18`, color: activeDetail.color, borderColor: `${activeDetail.color}40` }}
+            >
+              Verdict: {activeDetail.diagnosis}
+            </span>
+          </div>
+
+          <div className="failure-inspector__body">
+            <div className="failure-inspector__field">
+              <span className="failure-inspector__label">Incoming User Query</span>
+              <div className="failure-inspector__value failure-inspector__query">"{activeDetail.query}"</div>
+            </div>
+
+            <div className="failure-inspector__cols">
+              <div className="failure-inspector__col">
+                <span className="failure-inspector__label">Retrieved Evidence vs Ground Truth</span>
+                <div className="failure-inspector__code-box">
+                  <div className="failure-inspector__code-item">
+                    <span className="failure-inspector__subtag">Retrieved Chunks:</span>
+                    <p>{activeDetail.retrieved}</p>
+                  </div>
+                  <div className="failure-inspector__code-item">
+                    <span className="failure-inspector__subtag">Reference Evidence:</span>
+                    <p>{activeDetail.evidence}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="failure-inspector__col">
+                <span className="failure-inspector__label">Generated Answer vs Prescribed Fix</span>
+                <div className="failure-inspector__code-box">
+                  <div className="failure-inspector__code-item">
+                    <span className="failure-inspector__subtag">Actual Model Output:</span>
+                    <p className="text-warning">{activeDetail.output}</p>
+                  </div>
+                  <div className="failure-inspector__code-item">
+                    <span className="failure-inspector__subtag">Synapti<span className="brand-q">Q</span> Recommended Fix:</span>
+                    <p className="text-accent">{activeDetail.fix}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
