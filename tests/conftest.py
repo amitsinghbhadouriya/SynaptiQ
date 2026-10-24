@@ -19,3 +19,24 @@ def settings(tmp_path):
     return load_settings().with_overrides(
         embedding_backend="hashing",
         vector_backend="memory",
+        llm_provider="offline",
+        db_path=tmp_path / "synaptiq.db",
+        chroma_path=tmp_path / "chroma",
+        upload_dir=tmp_path / "uploads",
+        reports_dir=tmp_path / "reports",
+    )
+
+
+@pytest.fixture
+def workspace(settings):
+    return Workspace(settings)
+
+
+@pytest.fixture
+def sample_bytes():
+    return SAMPLE.read_bytes()
+
+
+@pytest.fixture
+def demo(workspace):
+    return workspace.load_demo()
