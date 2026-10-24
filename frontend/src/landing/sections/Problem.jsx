@@ -53,3 +53,58 @@ const FAILURE_METRICS = {
 };
 
 export default function Problem() {
+  const [activeKey, setActiveKey] = useState('retrieval');
+  const activeDetail = FAILURE_METRICS[activeKey] || FAILURE_METRICS.retrieval;
+  const ActiveIcon = activeDetail.icon;
+
+  return (
+    <section className="section" id="problem">
+      <div className="section__inner">
+        <SectionHeading eyebrow="01 — The problem">A wrong answer has many causes</SectionHeading>
+        <ScrollReveal
+          containerClassName="lead-reveal"
+          textClassName="lead-reveal__text"
+          baseOpacity={0.12}
+          enableBlur
+          blurStrength={4}
+          baseRotation={2}
+          stagger={0.05}
+        >
+          A RAG system retrieves passages and writes an answer from them. When that answer fails, a single end-to-end
+          score cannot tell you whether the retriever missed the evidence, the generator ignored it, or the pipeline
+          coordination broke down.
+        </ScrollReveal>
+
+        <div className="failure-grid">
+          {FAILURES.map(failure => {
+            const isSelected = failure.key === activeKey;
+            const meta = FAILURE_METRICS[failure.key];
+            const CardIcon = meta.icon;
+
+            return (
+              <article
+                key={failure.key}
+                className={`failure-card cursor-target failure-card--${failure.key}${isSelected ? ' failure-card--active' : ''}`}
+                data-cursor-label={failure.tag}
+                onClick={() => setActiveKey(failure.key)}
+                style={{ '--card-accent': meta.color }}
+              >
+                <div className="failure-card__header">
+                  <div className="failure-card__icon-box">
+                    <CardIcon size={20} />
+                  </div>
+                  <span className="failure-card__tag">{failure.tag}</span>
+                </div>
+                <h3>{failure.title}</h3>
+                <p>{failure.body}</p>
+                <div className="failure-card__footer">
+                  <span className="failure-card__action">
+                    {isSelected ? 'Viewing live autopsy' : 'Inspect anatomy'}
+                  </span>
+                  <ArrowRight size={14} className="failure-card__arrow" />
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
