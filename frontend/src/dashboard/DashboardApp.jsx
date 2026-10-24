@@ -238,3 +238,123 @@ function GenerateDialog({ data, documentId, theme, onClose, onSubmit }) {
 }
 
 // ------------------------------------------------------------------- app
+export default function DashboardApp({ data, notice, download, apiError, mode, send }) {
+  const [theme, setTheme] = useState(readStoredTheme);
+  const [tab, setTab] = useState(() => (TAB_IDS.includes(params.get('tab')) ? params.get('tab') : 'overview'));
+  const [pending, setPending] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [dialog, setDialog] = useState(null);
+  const fileRef = useRef(null);
+  const seenNotices = useRef(new Set());
+  const seenDownloads = useRef(new Set());
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.title = 'SynaptiQ — Dashboard';
+    try {
+      localStorage.setItem('synaptiq-theme', theme);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [theme]);
+  useEffect(() => () => document.documentElement.removeAttribute('data-theme'), []);
+
+  const pushToast = useCallback((level, message) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(list => [...list, { id, level, message }]);
+    window.setTimeout(() => setToasts(list => list.filter(t => t.id !== id)), level === 'error' ? 9000 : 5500);
+  }, []);
+
+  useEffect(() => {
+    if (notice?.nonce && !seenNotices.current.has(notice.nonce)) {
+      seenNotices.current.add(notice.nonce);
+      pushToast(notice.level, notice.message);
+    }
+    if (pending && (notice?.nonce === pending.nonce || apiError)) setPending(null);
+  }, [data, notice, apiError]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!download?.nonce || seenDownloads.current.has(download.nonce)) return;
+    seenDownloads.current.add(download.nonce);
+    const blob = new Blob([download.content], { type: download.mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = download.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, [download]);
+
+  const changeTheme = useCallback(
+    (next, event) => {
+      if (next === theme) return;
+      const x = event?.clientX ?? window.innerWidth - 160;
+      const y = event?.clientY ?? 32;
+      const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      const apply = () => {
+        document.documentElement.dataset.theme = next;
+        flushSync(() => setTheme(next));
+      };
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (!document.startViewTransition || reduced) {
+        apply();
+        return;
+      }
+      const transition = document.startViewTransition(apply);
+      transition.ready
+        .then(() =>
+          document.documentElement.animate(
+            { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+            { duration: 700, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', pseudoElement: '::view-transition-new(root)' }
+          )
+        )
+        .catch(() => {});
+    },
+    [theme]
+  );
+
+  const selected = useMemo(
+    () => data?.runs?.find(run => run.run_id === data.selected_run_id && run.status === 'completed') || null,
+    [data]
+  );
+  const previous = useMemo(() => {
+    const comparison = data?.comparison && !data.comparison.error ? data.comparison : null;
+    if (!comparison || !selected) return null;
+    const otherId = comparison.candidate_run_id === selected.run_id ? comparison.baseline_run_id : null;
+    return data.runs.find(run => run.run_id === otherId) || null;
+  }, [data, selected]);
+
+  const runLong = useCallback(
+    (type, payload, label) => {
+      const nonce = send({ type, ...payload });
+      setPending({ nonce, label, type });
+    },
+    [send]
+  );
+
+  const act = useMemo(
+    () => ({
+      upload: () => fileRef.current?.click(),
+      configure: documentId => setDialog({ kind: 'run', documentId: documentId || data?.focus_document_id }),
+      generate: documentId => setDialog({ kind: 'generate', documentId: documentId || data?.focus_document_id }),
+      demo: () =>
+        runLong('load_demo', {}, 'Loading the demo workspace: ingesting the sample handbook, indexing it and running a baseline plus the recommended candidate…'),
+      runCandidate: runId => runLong('run_candidate', { run_id: runId }, 'Running the recommended configuration on the same test set…'),
+      export: (runId, format) => send({ type: 'export', run_id: runId, format }),
+      selectRun: runId => send({ type: 'select_run', run_id: runId }),
+      review: (questionId, status) => send({ type: 'review', question_id: questionId, status }),
+      deleteDocument: documentId => runLong('delete_document', { document_id: documentId }, 'Deleting the document and its data…'),
+      compare: (baseline, candidate) =>
+        runLong('compare', { baseline_run_id: baseline, candidate_run_id: candidate }, 'Comparing runs…')
+    }),
+    [data?.focus_document_id, runLong, send]
+  );
+
+  const onFiles = async event => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    const limit = (data?.status?.limits?.max_upload_mb ?? 20) * 1024 * 1024;
+    const tooBig = files.filter(f => f.size > limit);
