@@ -70,3 +70,75 @@ class Document:
         data["char_count"] = len(self.text)
         return data
 
+
+@dataclass
+class Chunk:
+    chunk_id: str
+    document_id: str
+    chunk_index: int
+    text: str
+    start_char: int
+    end_char: int
+    index_key: str
+    page_number: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class EvidenceSpan:
+    start: int
+    end: int
+    text: str
+
+
+@dataclass
+class EvalQuestion:
+    question_id: str
+    document_id: str
+    question: str
+    reference_answer: str
+    question_type: str = "factual"
+    evidence: list[EvidenceSpan] = field(default_factory=list)
+    supporting_chunk_ids: list[str] = field(default_factory=list)
+    review_status: str = "pending"
+    source: str = "synthetic-offline"
+    created_at: str = field(default_factory=utc_now)
+
+    @property
+    def answerable(self) -> bool:
+        return self.question_type != "unanswerable"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "EvalQuestion":
+        payload = dict(data)
+        payload["evidence"] = [EvidenceSpan(**e) for e in payload.get("evidence", [])]
+        return cls(**{k: v for k, v in payload.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class RunConfig:
+    """Everything needed to reproduce a run. Stored with every run."""
+
+    chunk_size: int = 700
+    chunk_overlap: int = 100
+    top_k: int = 4
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_backend: str = "auto"
+    llm_provider: str = "offline"
+    llm_model: str = "offline-extractive"
+    prompt_version: str = "grounded-v1"
+    max_answer_sentences: int = 2
+    abstain_threshold: float = 0.3
+    label: str = ""
+
+    @property
+    def index_key(self) -> str:
+        """Chunks and vectors depend only on these settings; reuse the index when they match."""
+        raw = f"{self.embedding_backend}|{self.embedding_model}|{self.chunk_size}|{self.chunk_overlap}"
+        return hashlib.sha1(raw.encode()).hexdigest()[:10]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
