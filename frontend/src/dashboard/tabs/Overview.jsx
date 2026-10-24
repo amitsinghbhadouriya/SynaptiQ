@@ -236,3 +236,122 @@ function RecommendationCard({ selected, theme, act }) {
             <span className="ov-note">
               {rec.votes} of {rec.failing} failing
             </span>
+            <Button variant="primary" theme={theme} size="sm" onClick={() => act.runCandidate(selected.run_id)}>
+              Test it
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h3 className="ov-rec__title">Nothing to recommend</h3>
+          <p className="ov-rec__why">No failing question in this run produced a testable change.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TodayCard({ count, runsToday }) {
+  return (
+    <div className="ov-card">
+      <Head icon={ListChecks} title="Evaluated today" />
+      <div className="ov-value">
+        <CountUp value={count} />
+        <Badge tone="neutral">{runsToday} runs</Badge>
+      </div>
+      <p className="ov-note">Questions scored across all runs started today.</p>
+    </div>
+  );
+}
+
+function ExportCard({ selected, theme, act }) {
+  return (
+    <div className="ov-card">
+      <Head icon={Download} title="Export report" />
+      <p className="ov-note">Per-question metrics, diagnoses and the run configuration.</p>
+      <div className="ov-actions ov-actions--tight">
+        <Button variant="ghost" theme={theme} size="sm" onClick={() => act.export(selected.run_id, 'csv')}>
+          CSV
+        </Button>
+        <Button variant="ghost" theme={theme} size="sm" onClick={() => act.export(selected.run_id, 'json')}>
+          JSON
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EnvironmentCard({ status }) {
+  const rows = [
+    { label: 'Embeddings', value: status?.embedding?.backend, fallback: status?.embedding?.fallback_reason },
+    { label: 'Vectors', value: status?.vector_store?.backend, fallback: status?.vector_store?.fallback_reason },
+    { label: 'Generator', value: status?.llm?.provider, fallback: status?.llm?.fallback_reason },
+    { label: 'Ragas', value: status?.ragas?.available ? 'on' : 'off', fallback: status?.ragas?.available ? null : status?.ragas?.error }
+  ];
+  return (
+    <div className="ov-card">
+      <Head icon={Server} title="Environment" />
+      <ul className="ov-env">
+        {rows.map(row => (
+          <li key={row.label} title={row.fallback || ''}>
+            <i className={row.fallback ? 'is-warn' : 'is-ok'} />
+            <span>{row.label}</span>
+            <b>{row.value || '—'}</b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function RecentRuns({ runs, selectedId, onSelect }) {
+  const [query, setQuery] = useState('');
+  const shown = runs.filter(run =>
+    `${run.label} ${run.filename} ${run.config_short}`.toLowerCase().includes(query.toLowerCase())
+  );
+  return (
+    <div className="ov-card ov-runs">
+      <div className="ov-head">
+        <span className="ov-icon">
+          <ListChecks size={15} aria-hidden="true" />
+        </span>
+        <span className="ov-head__title">Recent runs</span>
+        <label className="d-search d-search--sm">
+          <Search size={14} aria-hidden="true" />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search runs" aria-label="Search runs" />
+        </label>
+      </div>
+      <div className="d-table-wrap">
+        <table className="d-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Document</th>
+              <th>Configuration</th>
+              <th className="num">Questions</th>
+              <th>Pass rate</th>
+              <th className="num">Hit@k</th>
+              <th className="num">Correctness</th>
+              <th className="num">Duration</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(run => (
+              <tr
+                key={run.run_id}
+                className={run.run_id === selectedId ? 'is-selected' : ''}
+                onClick={() => onSelect(run.run_id)}
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && onSelect(run.run_id)}
+              >
+                <td>
+                  <span className="d-cell-strong">{runName(run)}</span>
+                  {run.status !== 'completed' && <Badge tone={run.status === 'failed' ? 'bad' : 'neutral'}>{run.status}</Badge>}
+                </td>
+                <td className="d-muted">{run.filename}</td>
+                <td className="d-muted">{run.config_short}</td>
+                <td className="num">{run.questions ?? '—'}</td>
+                <td>
+                  <span className="d-inline-progress">
+                    <Progress value={run.pass_rate} />
