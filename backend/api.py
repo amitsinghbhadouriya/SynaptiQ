@@ -211,3 +211,74 @@ def create_run(body: RunRequest, background: BackgroundTasks, wait: bool = Query
     ws.get_document(document_id)
     if not ws.dataset_questions(document_id):
         raise HTTPException(422, "This dataset has no questions. Generate or import a test set first.")
+    config = ws.default_config(**body.configuration.model_dump(exclude_none=True))
+    if wait:
+        run = ws.run_evaluation(document_id, config, list(body.modes), label=config.label)
+        return {"run_id": run.run_id, "status": run.status}
+    # Reserve the run id now so the client can poll it; the run executes after the response.
+    run_id = new_id("run")
+    resolved, _ = ws.resolve(config)
+    ws.storage.save_run(EvaluationRun(run_id=run_id, document_id=document_id, dataset_id=body.dataset_id,
+                                      configuration=resolved, modes=list(body.modes), status="queued",
+                                      label=config.label))
+    background.add_task(ws.run_evaluation, document_id, config, list(body.modes), config.label, None, None, run_id)
+    return {"run_id": run_id, "status": "queued", "poll": f"/api/v1/evaluation/runs/{run_id}"}
+
+
+@app.get("/api/v1/evaluation/runs")
+def list_runs(limit: int = Query(50, ge=1, le=500), document_id: str | None = None) -> list[dict[str, Any]]:
+    return [_run_payload(r) for r in workspace().storage.list_runs(document_id)[:limit]]
+
+
+@app.get("/api/v1/evaluation/runs/{run_id}")
+def get_run(run_id: str) -> dict[str, Any]:
+    return _run_payload(workspace().get_run(run_id), include_results=True)
+
+
+@app.post("/api/v1/evaluation/runs/{run_id}/recommendation")
+def run_recommendation(run_id: str) -> dict[str, Any]:
+    try:
+        run = workspace().run_recommendation(run_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"run_id": run.run_id, "status": run.status, "parent_run_id": run.parent_run_id}
+
+
+@app.post("/api/v1/evaluation/compare")
+def compare(body: CompareRequest) -> dict[str, Any]:
+    return workspace().compare(body.baseline_run_id, body.candidate_run_id, strict=body.strict)
+
+
+@app.get("/api/v1/evaluation/runs/{run_id}/export")
+def export(run_id: str, format: Literal["csv", "json"] = "csv") -> Response:
+    filename, mime, content = workspace().export(run_id, format)
+    return Response(content, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.post("/api/v1/demo", status_code=201)
+def load_demo() -> dict[str, Any]:
+    return workspace().load_demo()
+
+
+# ------------------------------------------------- dashboard bridge (website)
+@app.get("/api/v1/ui/state")
+def ui_state(run_id: str | None = None) -> dict[str, Any]:
+    return build_state(workspace(), run_id)
+
+
+@app.post("/api/v1/ui/action")
+def ui_action(event: dict[str, Any]) -> dict[str, Any]:
+    ws = workspace()
+    outcome = handle_event(ws, event)
+    state = build_state(ws, outcome.get("selected_run_id") or event.get("selected_run_id"))
+    state["notice"] = outcome.get("notice")
+    state["download"] = outcome.get("download")
+    if outcome.get("comparison"):
+        state["comparison"] = outcome["comparison"]
+        state["charts"]["comparison"] = outcome.get("comparison_chart")
+    return state
+
+
+_dist = PROJECT_ROOT / "frontend" / "dist"
+if _dist.is_dir():
+    app.mount("/", StaticFiles(directory=_dist, html=True), name="website")
