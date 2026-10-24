@@ -80,3 +80,45 @@ export default function CallToAction({ onLaunch }) {
               <li><button type="button" onClick={() => scrollToId('loop')}>4-Step Workflow</button></li>
               <li><button type="button" onClick={() => scrollToId('showcase')}>Dashboard Showcase</button></li>
               <li><button type="button" onClick={() => scrollToId('features')}>Key Features</button></li>
+            </ul>
+          </div>
+
+          <div className="footer__col">
+            <h4 className="footer__heading">Diagnostics</h4>
+            <ul className="footer__list">
+              <li><button type="button" onClick={() => scrollToId('diagnosis')}>Root-Cause Matrix</button></li>
+              <li><button type="button" onClick={() => scrollToId('pipeline')}>12-Step Pipeline</button></li>
+              <li><button type="button" onClick={() => scrollToId('stack')}>Technology Stack</button></li>
+              <li><button type="button" onClick={onLaunch}>Launch App</button></li>
+            </ul>
+          </div>
+
+          <div className="footer__col">
+            <h4 className="footer__heading">Core Stack</h4>
+            <ul className="footer__list footer__list--static">
+              <li>Python 3.11 Engine</li>
+              <li>ChromaDB Vector Store</li>
+              <li>Sentence Transformers</li>
+              <li>Pytest 100% Verified</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="footer__bottom">
+          <p className="footer__copy">
+            © {new Date().getFullYear()} SynaptiQ. Designed for high-reliability, evidence-grounded AI systems.
+          </p>
+          <button
+            type="button"
+            className="footer__top-btn cursor-target"
+            data-cursor-label="Back to top"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <span>Back to top</span>
+            <ArrowUp size={14} />
+          </button>
+        </div>
+      </footer>
+    </>
+  );
+}
