@@ -19,3 +19,25 @@
   transition: box-shadow 0.3s ease;
   will-change: transform;
 }
+
+.bounce-cards__card[data-active] {
+  box-shadow: var(--bounce-cards-shadow-active);
+}
+
+.bounce-cards__card--clickable {
+  cursor: pointer;
+}
+
+.bounce-cards__card--clickable:focus-visible {
+  outline: 2px solid var(--bounce-cards-border-color);
+  outline-offset: 3px;
+}
+
+.bounce-cards__card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
