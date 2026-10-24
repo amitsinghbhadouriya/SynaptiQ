@@ -35,3 +35,40 @@ The automated tests are written using **`pytest`** and organized by functional l
 ## 3. How to Run the Tests
 
 Ensure your virtual environment is active, then run:
+
+### Run the Complete Test Suite
+```bash
+pytest
+```
+
+### Run Tests with Detailed Output
+```bash
+pytest -v
+```
+
+### Run a Specific Test File
+```bash
+pytest tests/test_root_cause.py -v
+```
+
+### Run a Specific Test Function
+```bash
+pytest tests/test_metrics.py -k "test_hit_at_k" -v
+```
+
+---
+
+## 4. QA Verification Checklist
+
+Before deploying updates or committing major changes to SynaptiQ, verify the following checklist:
+
+1. **Automated Tests**:
+   - `pytest` exits with code `0` (all 61 tests passing).
+2. **Frontend Compilation**:
+   - `npm --prefix frontend run build` completes with exit code `0` and zero warnings.
+3. **Database Integrity**:
+   - Run `pytest tests/test_storage.py` to ensure schema migrations and cascade deletions remain functional.
+4. **Single-Process Lock**:
+   - Verify that starting two instances on the same directory cleanly trips the `process_lock.py` safety check without data loss.
+5. **UI Accessibility & Aesthetics**:
+   - Verify that the landing page renders at 60 FPS without layout overflow and that the **"Q"** gradient animation flows smoothly.
