@@ -126,3 +126,67 @@ const ScrollFloat = ({
     };
     const sway = p => {
       const t = timing(p);
+      return Math.sin(t * Math.PI * 2.5) * Math.pow(1 - t, 2.6);
+    };
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const timeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          scroller,
+          start: scrollStart,
+          end: clampToScroll(scrollEnd),
+          scrub: smoothing > 0 ? smoothing : true,
+          invalidateOnRefresh: true
+        }
+      });
+      const add = (fromVars, toVars) => {
+        gsap.set(targets, { willChange: 'opacity, transform', ...fromVars });
+        return timeline.fromTo(
+          targets,
+          { willChange: 'opacity, transform', ...fromVars },
+          { duration: animationDuration, stagger: index => delays[index] || 0, ...toVars },
+          0
+        );
+      };
+
+      if (effect === 'flip') {
+        add(
+          {
+            rotationX: -90 * sign,
+            transformPerspective: () => size() * 4,
+            transformOrigin: () => `50% 50% ${(-size() * 0.55 * reach).toFixed(2)}`,
+            backfaceVisibility: 'hidden'
+          },
+          { ease, rotationX: 0 }
+        );
+        add({ opacity: 0 }, { ease: p => smoothstep(0.05, 0.55, timing(p)), opacity: 1 });
+      } else if (effect === 'scatter') {
+        add(
+          {
+            x: at(index => ((random(index, 1) * 2 - 1) * 1.3 - edge(index) * 0.9) * size() * reach),
+            y: at(index => sign * (0.35 + random(index, 2)) * size() * 1.1 * reach),
+            rotation: at(index => (random(index, 3) < 0.5 ? -1 : 1) * (40 + random(index, 4) * 120)),
+            scale: at(index => 0.35 + random(index, 5) * 0.9),
+            transformOrigin: '50% 50%'
+          },
+          { ease, x: 0, y: 0, rotation: 0, scale: 1 }
+        );
+        add({ opacity: 0 }, { ease: p => smoothstep(0, 0.4, timing(p)), opacity: 1 });
+      } else if (effect === 'blur') {
+        add(
+          {
+            willChange: 'opacity, transform, filter',
+            opacity: 0,
+            y: () => sign * size() * 0.3 * reach,
+            scale: 1.45,
+            filter: () => `blur(${(size() * 0.2).toFixed(2)}px)`,
+            transformOrigin: '50% 50%'
+          },
+          { ease, opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
+        );
+      } else if (effect === 'wave') {
+        add(
+          {
+            yPercent: 120 * reach * sign,
