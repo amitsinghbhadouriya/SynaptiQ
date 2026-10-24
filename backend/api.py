@@ -69,3 +69,74 @@ app = FastAPI(
     description="RAG evaluation, root-cause intelligence and optimization.",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    started = time.perf_counter()
+    response = await call_next(request)
+    response.headers["x-request-id"] = request_id
+    if request.url.path.startswith("/api/"):
+        log.info("request_id=%s method=%s path=%s status=%s ms=%d", request_id, request.method, request.url.path,
+                 response.status_code, (time.perf_counter() - started) * 1000)
+    return response
+
+
+@app.exception_handler(NotFound)
+async def not_found_handler(_: Request, exc: NotFound):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(IncompatibleRuns)
+async def incompatible_handler(_: Request, exc: IncompatibleRuns):
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+# ------------------------------------------------------------------- models
+class GenerateRequest(BaseModel):
+    document_id: str
+    count: int = Field(10, ge=1, le=500)
+    question_types: list[Literal["factual", "numerical", "multi_hop", "unanswerable"]] = list(QUESTION_TYPES)
+
+
+class ImportRequest(BaseModel):
+    document_id: str
+    questions: list[dict[str, Any]]
+
+
+class ReviewRequest(BaseModel):
+    review_status: Literal["pending", "approved", "rejected"] | None = None
+    question: str | None = None
+    reference_answer: str | None = None
+
+
+class RunConfiguration(BaseModel):
+    top_k: int | None = Field(None, ge=1, le=20)
+    chunk_size: int | None = Field(None, ge=100, le=4000)
+    chunk_overlap: int | None = Field(None, ge=0, le=1000)
+    embedding_model: str | None = None
+    embedding_backend: Literal["auto", "sentence-transformers", "hashing"] | None = None
+    prompt_version: Literal["grounded-v1", "grounded-strict-v2"] | None = None
+    max_answer_sentences: int | None = Field(None, ge=1, le=5)
+    abstain_threshold: float | None = Field(None, ge=0, le=1)
+    label: str | None = Field(None, max_length=80)
+
+
+class RunRequest(BaseModel):
+    dataset_id: str = Field(..., description="ds_<document_id>")
+    modes: list[Literal["retriever", "generator", "end_to_end"]] = list(MODES)
+    configuration: RunConfiguration = RunConfiguration()
+
+
+class CompareRequest(BaseModel):
+    baseline_run_id: str
+    candidate_run_id: str
+    strict: bool = True
+
+
+def _run_payload(run: EvaluationRun, include_results: bool = False) -> dict[str, Any]:
+    payload = run.to_dict()
+    if include_results and run.status == "completed":
+        payload["results"] = to_jsonable(workspace().storage.get_results(run.run_id))
+    return payload
