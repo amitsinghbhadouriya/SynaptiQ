@@ -224,3 +224,229 @@ const AnalyticsVisual = () => {
     const position = (x / Math.max(1, rect.width)) * (CHART.length - 1);
     const index = Math.floor(position);
     const next = Math.min(CHART.length - 1, index + 1);
+    const value = CHART[index] + (CHART[next] - CHART[index]) * (position - index);
+    chart.dataset.scrub = '';
+    line.style.transform = `translateX(${x.toFixed(1)}px)`;
+    dot.style.transform = `translateY(${y.toFixed(1)}px)`;
+    label.textContent = `${value.toFixed(1)}k`;
+    note.textContent = `Oct ${Math.round(position) + 1}`;
+  };
+
+  const rest = () => {
+    if (chartRef.current) delete chartRef.current.dataset.scrub;
+    if (valueRef.current) valueRef.current.textContent = `${CHART[CHART.length - 1].toFixed(1)}k`;
+    if (noteRef.current) noteRef.current.textContent = '+18%';
+  };
+
+  return (
+    <div
+      ref={chartRef}
+      className="magic-bento__chart"
+      onPointerMove={scrub}
+      onPointerDown={scrub}
+      onPointerLeave={rest}
+    >
+      <div className="magic-bento__figure">
+        <span ref={valueRef} className="magic-bento__figure-value">
+          {CHART[CHART.length - 1].toFixed(1)}k
+        </span>
+        <span ref={noteRef} className="magic-bento__figure-note">
+          +18%
+        </span>
+      </div>
+      <div ref={plotRef} className="magic-bento__plot">
+        {shape && size && (
+          <svg viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true">
+            <path className="magic-bento__chart-area" d={shape.area} />
+            <path className="magic-bento__chart-line" d={shape.line} pathLength="1" />
+          </svg>
+        )}
+        <span ref={scrubRef} className="magic-bento__scrub">
+          <span ref={dotRef} className="magic-bento__scrub-dot" />
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const BARS = [42, 58, 49, 71, 63, 88, 76];
+
+const DashboardVisual = () => (
+  <div className="magic-bento__bars">
+    <div className="magic-bento__figure">
+      <span className="magic-bento__figure-value">$48.2k</span>
+      <span className="magic-bento__figure-note">Weekly</span>
+    </div>
+    <div className="magic-bento__bars-plot">
+      {BARS.map((height, index) => (
+        <span
+          key={index}
+          className="magic-bento__bar"
+          data-peak={height === Math.max(...BARS) ? '' : undefined}
+          style={vars({ '--h': height / 100, '--i': index })}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const ARROW = (
+  <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true">
+    <path
+      d="M2.2 1.6 13.4 9.9c.5.4.3 1.2-.4 1.3l-4.6.6-2.2 4.2c-.3.6-1.2.5-1.4-.1L1.2 2.4c-.2-.6.5-1.1 1-.8Z"
+      strokeWidth="1.2"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const CollaborationVisual = () => (
+  <div className="magic-bento__collab magic-bento__well">
+    <span className="magic-bento__doc-title">Launch plan</span>
+    <div className="magic-bento__lines">
+      <span className="magic-bento__line" style={vars({ '--w': '92%' })} />
+      <span className="magic-bento__line" style={vars({ '--w': '78%' })} />
+      <span className="magic-bento__line" style={vars({ '--w': '86%' })} />
+      <span className="magic-bento__line" style={vars({ '--w': '44%' })} />
+      <span className="magic-bento__line magic-bento__line--gap" style={vars({ '--w': '88%' })} />
+      <span className="magic-bento__line" style={vars({ '--w': '70%' })}>
+        <span className="magic-bento__selection" style={vars({ '--from': '18%', '--span': '58%' })}>
+          <span className="magic-bento__caret" />
+        </span>
+      </span>
+      <span className="magic-bento__line" style={vars({ '--w': '82%' })} />
+    </div>
+    <span
+      className="magic-bento__cursor magic-bento__cursor--primary"
+      style={vars({ '--x': '58%', '--y': '52%', '--i': 0, '--path': 'magic-bento-path-a' })}
+    >
+      {ARROW}
+      <span className="magic-bento__cursor-name">Maya</span>
+    </span>
+    <span
+      className="magic-bento__cursor magic-bento__cursor--secondary"
+      style={vars({ '--x': '30%', '--y': '24%', '--i': 1, '--path': 'magic-bento-path-b' })}
+    >
+      {ARROW}
+      <span className="magic-bento__cursor-name">Leo</span>
+    </span>
+  </div>
+);
+
+const STEPS = [
+  { label: 'Install', time: '8s' },
+  { label: 'Build', time: '12s' },
+  { label: 'Test', time: '48s' },
+  { label: 'Deploy', time: '9s' }
+];
+
+const AutomationVisual = () => (
+  <div className="magic-bento__flow" style={vars({ '--n': STEPS.length })}>
+    <div className="magic-bento__flow-trigger magic-bento__tile">
+      <span className="magic-bento__flow-glyph">
+        <HugeiconsIcon icon={GitBranchIcon} size={15} strokeWidth={1.8} />
+      </span>
+      <span className="magic-bento__flow-copy">
+        <span className="magic-bento__flow-name">Push to main</span>
+        <span className="magic-bento__flow-meta magic-bento__flow-hash">a1c9f3e</span>
+      </span>
+    </div>
+    <ol className="magic-bento__steps magic-bento__well">
+      <span className="magic-bento__rail" aria-hidden="true">
+        <span className="magic-bento__rail-fill" />
+      </span>
+      {STEPS.map((step, index) => (
+        <li key={step.label} className="magic-bento__step" style={vars({ '--i': index })}>
+          <span className="magic-bento__status">
+            <span className="magic-bento__pending" />
+            <span className="magic-bento__spinner" />
+            <span className="magic-bento__done">
+              <HugeiconsIcon icon={Tick02Icon} size={11} strokeWidth={2.6} />
+            </span>
+          </span>
+          {step.label}
+          <span className="magic-bento__step-time">{step.time}</span>
+        </li>
+      ))}
+    </ol>
+  </div>
+);
+
+const APPS = [
+  { icon: SlackIcon, x: '17%', y: '24%' },
+  { icon: GithubIcon, x: '83%', y: '24%' },
+  { icon: FigmaIcon, x: '17%', y: '78%' },
+  { icon: NotionIcon, x: '83%', y: '78%' }
+];
+
+const IntegrationVisual = () => (
+  <div className="magic-bento__hub">
+    <svg className="magic-bento__hub-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {APPS.map(app => (
+        <line key={app.x + app.y} x1={parseFloat(app.x)} y1={parseFloat(app.y)} x2="50" y2="51" pathLength="1" />
+      ))}
+    </svg>
+    {APPS.map((app, index) => (
+      <span
+        key={`packet-${index}`}
+        className="magic-bento__packet"
+        style={vars({ '--x': app.x, '--y': app.y, '--i': index })}
+      />
+    ))}
+    {APPS.map((app, index) => (
+      <span
+        key={app.x + app.y}
+        className="magic-bento__hub-node magic-bento__tile"
+        style={vars({ '--x': app.x, '--y': app.y, '--s': '26px', '--i': index + 1 })}
+      >
+        <HugeiconsIcon icon={app.icon} size={14} strokeWidth={1.8} />
+      </span>
+    ))}
+    <span
+      className="magic-bento__hub-node magic-bento__tile"
+      style={vars({ '--x': '50%', '--y': '51%', '--s': '34px', '--i': 0 })}
+    >
+      <HugeiconsIcon icon={SparklesIcon} size={17} strokeWidth={1.8} />
+    </span>
+  </div>
+);
+
+const SETTINGS = [
+  { icon: Key01Icon, label: 'SSO' },
+  { icon: FingerPrintIcon, label: '2FA' }
+];
+
+const SecurityVisual = () => (
+  <div className="magic-bento__shield">
+    {SETTINGS.map((setting, index) => (
+      <div key={setting.label} className="magic-bento__setting magic-bento__tile">
+        <HugeiconsIcon icon={setting.icon} size={14} strokeWidth={1.8} />
+        <span className="magic-bento__setting-label">{setting.label}</span>
+        <span className="magic-bento__switch" style={vars({ '--i': index })} />
+      </div>
+    ))}
+  </div>
+);
+
+const VISUALS = {
+  analytics: AnalyticsVisual,
+  dashboard: DashboardVisual,
+  collaboration: CollaborationVisual,
+  automation: AutomationVisual,
+  integration: IntegrationVisual,
+  security: SecurityVisual
+};
+
+const REPLAY = new Set([
+  'magic-bento-draw',
+  'magic-bento-fade',
+  'magic-bento-grow',
+  'magic-bento-pop',
+  'magic-bento-select',
+  'magic-bento-wait',
+  'magic-bento-run',
+  'magic-bento-check',
+  'magic-bento-rail',
+  'magic-bento-switch-track',
+  'magic-bento-switch-knob'
+]);
