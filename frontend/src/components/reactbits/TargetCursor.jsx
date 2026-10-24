@@ -183,3 +183,96 @@ const TargetCursor = ({
       }
 
       const follow = locked ? snapK : 2200;
+      const followC = locked ? snapC : 2 * Math.sqrt(2200);
+      spring(centerX, goalX, follow, followC, dt);
+      spring(centerY, goalY, follow, followC, dt);
+      spring(halfW, goalW, snapK, snapC, dt);
+      spring(halfH, goalH, snapK, snapC, dt);
+      spring(radius, goalR, snapK, 2 * snapW, dt);
+
+      if (locked) {
+        spring(turn, quarter * QUARTER, snapK, snapC, dt);
+      } else {
+        const speed = s.spinDuration > 0 && !reduce ? (Math.PI * 2) / s.spinDuration : 0;
+        spinSpeed += (speed - spinSpeed) * (1 - Math.exp(-dt * 3));
+        turn.v = spinSpeed;
+        turn.x += spinSpeed * dt;
+      }
+
+      const squeeze = 1 - press.x * 0.14;
+      const cos = Math.cos(turn.x);
+      const sin = Math.sin(turn.x);
+      const w = Math.max(0, halfW.x) * squeeze;
+      const h = Math.max(0, halfH.x) * squeeze;
+      const local = [
+        [-w, -h],
+        [w, -h],
+        [w, h],
+        [-w, h]
+      ];
+      const r = Math.max(0, Math.min(radius.x, s.cornerSize));
+      const degrees = (turn.x * 180) / Math.PI;
+      let left = Infinity;
+      let top = Infinity;
+      cornerRefs.current.forEach((corner, i) => {
+        if (!corner) return;
+        const [lx, ly] = local[i];
+        const x = centerX.x + lx * cos - ly * sin;
+        const y = centerY.x + lx * sin + ly * cos;
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        corner.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${(CORNER_ANGLES[i] + degrees).toFixed(2)}deg)`;
+        corner.style.width = `${s.cornerSize}px`;
+        corner.style.height = `${s.cornerSize}px`;
+        corner.style.borderWidth = `${s.thickness}px 0 0 ${s.thickness}px`;
+        corner.style.borderTopLeftRadius = `${r.toFixed(2)}px`;
+      });
+
+      const dot = dotRef.current;
+      if (dot) {
+        const dotScale = 1 - press.x * 0.35;
+        dot.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) translate(-50%, -50%) scale(${dotScale.toFixed(3)})`;
+        dot.style.width = `${s.dotSize}px`;
+        dot.style.height = `${s.dotSize}px`;
+      }
+
+      const label = labelRef.current;
+      if (label) {
+        const text = s.showLabel && target ? target.getAttribute('data-cursor-label') || '' : '';
+        if (text && text !== lastLabel) label.textContent = text;
+        if (text) lastLabel = text;
+        const shown = text ? Math.max(0, Math.min(1, lock.x)) : 0;
+        label.style.transform = `translate3d(${left.toFixed(2)}px, ${(top - 8).toFixed(2)}px, 0) translateY(-100%) translateY(${((1 - shown) * 4).toFixed(2)}px)`;
+        label.style.opacity = shown.toFixed(3);
+      }
+
+      const mix = s.cursorColorOnTarget ? Math.round(Math.max(0, Math.min(1, lock.x)) * 100) : 0;
+      const color = mix ? `color-mix(in oklab, ${s.cursorColorOnTarget} ${mix}%, ${s.cursorColor})` : s.cursorColor;
+      if (color !== lastColor) {
+        root.style.setProperty('--target-cursor-color', color);
+        lastColor = color;
+      }
+      root.style.opacity = Math.max(0, Math.min(1, presence.x)).toFixed(3);
+
+      const resting =
+        !pointer.inside &&
+        presence.x < 0.002 &&
+        Math.abs(presence.v) < 0.002 &&
+        Math.abs(lock.x) < 0.002 &&
+        Math.abs(press.x) < 0.002;
+      const spinning = pointer.inside && !locked && spinSpeed > 0.0001;
+      const moving =
+        Math.abs(centerX.v) + Math.abs(centerY.v) + Math.abs(halfW.v) + Math.abs(halfH.v) + Math.abs(turn.v) > 0.01 ||
+        Math.abs(goalX - centerX.x) + Math.abs(goalY - centerY.x) > 0.05 ||
+        Math.abs(lock.v) + Math.abs(press.v) + Math.abs(presence.v) > 0.001;
+      if (!resting && (spinning || moving || locked)) raf = requestAnimationFrame(frame);
+      else last = 0;
+    };
+
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    wakeRef.current = () => {
+      hideCursor();
+      wake();
+    };
