@@ -90,3 +90,49 @@ class ChromaVectorStore:
                 part = chunks[i : i + batch]
                 collection.upsert(
                     ids=[c.chunk_id for c in part],
+                    embeddings=embeddings[i : i + batch],
+                    documents=[c.text for c in part],
+                    metadatas=[
+                        {
+                            "document_id": c.document_id,
+                            "chunk_index": c.chunk_index,
+                            "start_char": c.start_char,
+                            "end_char": c.end_char,
+                            "page_number": c.page_number if c.page_number is not None else -1,
+                            "section": str(c.metadata.get("section", "")),
+                        }
+                        for c in part
+                    ],
+                )
+
+    def query(self, name: str, embedding: list[float], k: int) -> list[tuple[str, float]]:
+        collection = self._collection(name)
+        count = collection.count()
+        if count == 0:
+            return []
+        result = collection.query(query_embeddings=[embedding], n_results=min(k, count), include=["distances"])
+        ids = result.get("ids", [[]])[0]
+        distances = result.get("distances", [[]])[0]
+        return [(chunk_id, 1.0 - float(distance)) for chunk_id, distance in zip(ids, distances)]
+
+    def delete_prefix(self, prefix: str) -> None:
+        with self._lock:
+            for collection in self._client.list_collections():
+                name = collection if isinstance(collection, str) else collection.name
+                if name.startswith(prefix):
+                    self._client.delete_collection(name)
+
+
+def create_vector_store(backend: str, chroma_path: Path) -> tuple[VectorStore, str | None]:
+    """Return (store, fallback_reason)."""
+    backend = (backend or "auto").lower()
+    if backend == "memory":
+        return MemoryVectorStore(), None
+    try:
+        return ChromaVectorStore(chroma_path), None
+    except Exception as exc:
+        if backend == "chroma":
+            raise
+        reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+        log.warning("ChromaDB unavailable, using in-memory vectors (%s)", reason)
+        return MemoryVectorStore(), reason
