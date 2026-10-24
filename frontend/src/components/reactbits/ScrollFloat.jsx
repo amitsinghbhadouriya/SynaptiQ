@@ -62,3 +62,67 @@ const ScrollFloat = ({
   stretch = 2.3,
   smoothing = 0
 }) => {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+
+  const text = useMemo(() => {
+    const parts = Children.toArray(children);
+    return parts.every(part => typeof part === 'string' || typeof part === 'number') ? parts.join('') : null;
+  }, [children]);
+
+  const shiftColor = fromColor && fromColor !== 'currentColor' ? fromColor : null;
+  const shiftStyle = useMemo(
+    () =>
+      shiftColor
+        ? { color: `color-mix(in oklab, ${shiftColor} calc(var(--scroll-float-mix, 0) * 100%), currentColor)` }
+        : undefined,
+    [shiftColor]
+  );
+
+  const splitText = useMemo(() => {
+    if (text === null) return null;
+    return text.split(/(\s+)/).map((word, wordIndex) =>
+      word.trim() === '' ? (
+        word
+      ) : (
+        <span className="scroll-float-word" key={wordIndex}>
+          {Array.from(word).map((char, charIndex) => (
+            <span className="scroll-float-char" key={charIndex} style={shiftStyle}>
+              {char}
+            </span>
+          ))}
+        </span>
+      )
+    );
+  }, [text, shiftStyle]);
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  useIsomorphicLayoutEffect(() => {
+    const el = containerRef.current;
+    const textEl = textRef.current;
+    if (!el || !textEl) return;
+    if (scrollContainerRef && !scrollContainerRef.current) return;
+
+    const scroller = scrollContainerRef?.current || window;
+    const pieces = el.querySelectorAll(splitBy === 'words' ? '.scroll-float-word' : '.scroll-float-char');
+    const targets = pieces.length ? Array.from(pieces) : [textEl];
+    const indexOf = new Map(targets.map((target, index) => [target, index]));
+    const at = fn => (_, target) => fn(indexOf.get(target) ?? 0);
+    const middle = (targets.length - 1) / 2;
+    const edge = index => (middle > 0 ? (index - middle) / middle : 0);
+    const delays = getDelays(targets.length, order, stagger);
+    const sign = direction === 'down' ? -1 : 1;
+    const reach = Math.max(0, Number(distance) || 0) / 120;
+    const squeeze = stretch > 0 ? stretch ** -0.43 : 1;
+    const baseEase = gsap.parseEase(ease) || (p => p);
+    const timing = p => clamp01(baseEase(p));
+    const size = () => parseFloat(getComputedStyle(textEl).fontSize) || 16;
+    const swell = p => {
+      const t = timing(p);
+      return 1 - Math.cos(t * Math.PI * 2.5) * Math.pow(1 - t, 2.6);
+    };
+    const sway = p => {
+      const t = timing(p);
