@@ -60,3 +60,34 @@ export default function TechStack() {
               shadow
             />
           ))}
+        </div>
+        <ul className="stack__list" aria-label="Technologies and their roles">
+          {STACK.map(item => (
+            <li key={item.name} className="stack__item cursor-target" data-cursor-label={item.name}>
+              <div
+                className="stack__icon-badge"
+                aria-hidden="true"
+                dangerouslySetInnerHTML={{ __html: getTechIconSvg(item.name) }}
+              />
+              <div className="stack__item-info">
+                <strong>{item.name}</strong>
+                <span>{item.role}</span>
+              </div>
+            </li>
+          ))}
+          <li className="stack__item cursor-target" data-cursor-label="Standard Python">
+            <div
+              className="stack__icon-badge"
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: getTechIconSvg('Standard Python') }}
+            />
+            <div className="stack__item-info">
+              <strong>Standard Python</strong>
+              <span>TXT handling & text cleaning</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
