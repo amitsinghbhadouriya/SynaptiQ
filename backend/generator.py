@@ -148,3 +148,79 @@ class AnthropicGenerator:
         self.refusal_fallback = settings.llm_refusal_fallback
         self.prices = (
             (settings.llm_input_price_per_mtok, settings.llm_output_price_per_mtok)
+            if settings.llm_input_price_per_mtok is not None and settings.llm_output_price_per_mtok is not None
+            else KNOWN_PRICES.get(self.model)
+        )
+
+    def complete(self, system: str, user: str, output_config: dict | None = None) -> tuple[str, object]:
+        """One Messages API call; returns (text, response). Raises the SDK's typed errors."""
+        params = dict(
+            model=self.model,
+            max_tokens=16000,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            output_config={"effort": self.effort, **(output_config or {})},
+        )
+        if self.refusal_fallback:
+            # Server-side fallback: a declined request is re-run on Anthropic's recommended model.
+            response = self.client.beta.messages.create(
+                **params, betas=["server-side-fallback-2026-07-01"], fallbacks="default"
+            )
+        else:
+            response = self.client.messages.create(**params)
+        if response.stop_reason == "refusal":
+            category = getattr(getattr(response, "stop_details", None), "category", None)
+            raise RuntimeError(f"The model declined this request (category: {category or 'unspecified'}).")
+        text = "".join(block.text for block in response.content if block.type == "text").strip()
+        return text, response
+
+    def generate(self, question: str, contexts: list[str], config: RunConfig) -> GenerationResult:
+        started = time.perf_counter()
+        prompt_version = config.prompt_version if config.prompt_version in PROMPT_VERSIONS else "grounded-v1"
+        a = self._anthropic
+        try:
+            text, response = self.complete(PROMPT_VERSIONS[prompt_version], build_user_prompt(question, contexts))
+        except a.AuthenticationError:
+            return self._error("Authentication failed: check ANTHROPIC_API_KEY.", started, prompt_version)
+        except a.RateLimitError:
+            return self._error("Rate limited by the provider; retry later.", started, prompt_version)
+        except a.APITimeoutError:
+            return self._error("The provider timed out.", started, prompt_version)
+        except a.APIStatusError as exc:
+            return self._error(f"Provider error {exc.status_code}.", started, prompt_version)
+        except a.APIConnectionError:
+            return self._error("Could not reach the provider (network error).", started, prompt_version)
+        except a.AnthropicError as exc:  # e.g. no credentials configured
+            return self._error(f"Provider error ({type(exc).__name__}).", started, prompt_version)
+        except RuntimeError as exc:
+            return self._error(str(exc), started, prompt_version)
+
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+        cost = None
+        if self.prices and input_tokens is not None and output_tokens is not None:
+            cost = round((input_tokens * self.prices[0] + output_tokens * self.prices[1]) / 1_000_000, 6)
+        return GenerationResult(
+            answer=text or ABSTAIN_ANSWER, provider=self.provider, model=getattr(response, "model", self.model),
+            prompt_version=prompt_version, latency_ms=int((time.perf_counter() - started) * 1000),
+            input_tokens=input_tokens, output_tokens=output_tokens, estimated_cost=cost,
+        )
+
+    def _error(self, message: str, started: float, prompt_version: str) -> GenerationResult:
+        return GenerationResult(
+            answer="", provider=self.provider, model=self.model, prompt_version=prompt_version,
+            latency_ms=int((time.perf_counter() - started) * 1000), error=message,
+        )
+
+
+def create_generator(settings: Settings, embedder: Embedder | None) -> tuple[Generator, str | None]:
+    """Return (generator, fallback_reason)."""
+    if settings.llm_provider == "anthropic":
+        try:
+            return AnthropicGenerator(settings), None
+        except Exception as exc:  # missing package or credentials problem at construction
+            reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+            log.warning("Anthropic generator unavailable, using offline generator (%s)", reason)
+            return OfflineExtractiveGenerator(embedder), reason
+    return OfflineExtractiveGenerator(embedder), None
