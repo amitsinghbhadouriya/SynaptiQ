@@ -69,3 +69,75 @@ export function Button({ variant = 'ghost', theme = 'light', size = 'md', icon: 
       {children}
     </StarBorder>
   );
+}
+
+export function IconButton({ icon: Icon, label, active = false, dot = false, className = '', ...props }) {
+  return (
+    <button type="button" className={`d-icon-btn${active ? ' is-active' : ''} ${className}`.trim()} aria-label={label} title={label} {...props}>
+      <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
+      {dot && <span className="d-icon-btn__dot" aria-hidden="true" />}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------- badges
+export function Badge({ tone = 'neutral', children, icon: Icon, className = '' }) {
+  return (
+    <span className={`d-badge d-badge--${tone} ${className}`.trim()}>
+      {Icon && <Icon size={12} strokeWidth={2.2} aria-hidden="true" />}
+      {children}
+    </span>
+  );
+}
+
+const TONE_ICON = { good: CircleCheck, bad: CircleX, warn: TriangleAlert, neutral: Minus };
+
+export function DiagnosisBadge({ code, label }) {
+  const tone = DIAGNOSIS_TONE[code] || 'neutral';
+  return (
+    <Badge tone={tone} icon={TONE_ICON[tone]}>
+      {label}
+    </Badge>
+  );
+}
+
+export function Delta({ value, suffix = ' pts', invert = false, digits = 1 }) {
+  if (value === null || value === undefined || Number.isNaN(value)) return <span className="d-delta d-delta--flat">no comparison</span>;
+  const good = invert ? value < 0 : value > 0;
+  const flat = Math.abs(value) < 1e-9;
+  const Icon = flat ? Minus : value > 0 ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className={`d-delta ${flat ? 'd-delta--flat' : good ? 'd-delta--up' : 'd-delta--down'}`}>
+      <Icon size={13} strokeWidth={2.4} aria-hidden="true" />
+      {value > 0 ? '+' : ''}
+      {value.toFixed(digits)}
+      {suffix}
+    </span>
+  );
+}
+
+// -------------------------------------------------------- small controls
+export function Segmented({ options, value, onChange, label, size = 'md' }) {
+  return (
+    <div className={`d-seg d-seg--${size}`} role="radiogroup" aria-label={label}>
+      {options.map(option => {
+        const Icon = option.icon;
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className={`d-seg__opt${selected ? ' is-selected' : ''}`}
+            onClick={event => onChange(option.value, event)}
+            title={option.title || option.label}
+          >
+            {Icon && <Icon size={14} strokeWidth={2} aria-hidden="true" />}
+            {option.label && <span>{option.label}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
