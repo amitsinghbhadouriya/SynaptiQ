@@ -75,3 +75,42 @@ def diagnose(
         return Diagnosis(
             "CORRECT_BUT_UNGROUNDED",
             "The final answer matches the reference, but the retrieved chunks do not contain the reference "
+            "evidence, so the answer is not grounded in the right source.",
+            notes,
+        )
+    if retrieval_supported is False and generator_passed is True:
+        return Diagnosis(
+            "LIKELY_RETRIEVAL_FAILURE",
+            "The generator answers correctly when given the reference evidence directly, but the retriever did "
+            "not return that evidence in the top-k results.",
+            notes,
+        )
+    if retrieval_supported is True and generator_passed is False:
+        return Diagnosis(
+            "LIKELY_GENERATION_FAILURE",
+            "The supporting evidence was retrieved, and even with the reference evidence supplied directly the "
+            "generator's answer was incorrect or unsupported.",
+            notes,
+        )
+    if retrieval_supported is False and end_to_end_passed is False:
+        return Diagnosis(
+            "LIKELY_COMBINED_FAILURE",
+            "The retriever missed the reference evidence and the end-to-end answer failed"
+            + (" — the generator also failed with the evidence supplied." if generator_passed is False else "."),
+            notes,
+        )
+    if retrieval_supported is True and generator_passed is True:
+        if end_to_end_passed is False:
+            return Diagnosis(
+                "PIPELINE_INTERACTION_FAILURE",
+                "Retrieval found the evidence and the generator succeeds with clean evidence, yet the combined "
+                "pipeline failed — extra retrieved context or prompt assembly likely interfered.",
+                notes,
+            )
+        if end_to_end_passed is True:
+            return Diagnosis("PASS", "Retrieval, generation and the end-to-end answer all passed.", notes)
+    return Diagnosis(
+        "UNCERTAIN_REQUIRES_REVIEW",
+        "The measurements conflict or are incomplete; the reference answer or evidence may be ambiguous.",
+        notes,
+    )
