@@ -220,3 +220,78 @@ export default function SynapseScene({
       last = now;
       const motion = reduced ? 0.15 : 1;
 
+      world.rotation.y += dt * 0.07 * motion;
+      look.x += (pointer.x * 0.35 - look.x) * (1 - Math.exp(-dt * 2.5));
+      look.y += (pointer.y * 0.22 - look.y) * (1 - Math.exp(-dt * 2.5));
+      scene.rotation.y = look.x;
+      scene.rotation.x = look.y;
+      rings[0].rotation.z += dt * 0.05 * motion;
+      rings[1].rotation.z -= dt * 0.03 * motion;
+
+      for (let i = 0; i < pulseCount; i++) {
+        const p = pulses[i];
+        p.t += dt * p.speed * motion;
+        if (p.t >= 1) {
+          // hop to a link that continues from the node we arrived at
+          const arrived = edges[p.edge][p.forward ? 1 : 0];
+          const options = adjacency[arrived];
+          p.edge = options.length ? options[Math.floor(rand() * options.length)] : Math.floor(rand() * edges.length);
+          p.forward = edges[p.edge][0] === arrived;
+          p.t = 0;
+        }
+        const [a, b] = edges[p.edge];
+        const from = nodes[p.forward ? a : b];
+        const to = nodes[p.forward ? b : a];
+        pulsePositions[i * 3] = from.x + (to.x - from.x) * p.t;
+        pulsePositions[i * 3 + 1] = from.y + (to.y - from.y) * p.t;
+        pulsePositions[i * 3 + 2] = from.z + (to.z - from.z) * p.t;
+      }
+      pulseGeometry.attributes.position.needsUpdate = true;
+
+      const fade = 1 - scrollFade * 0.85;
+      nodeMaterial.uniforms.uOpacity.value = 0.95 * fade;
+      pulseMaterial.uniforms.uOpacity.value = fade;
+      linkMaterial.opacity = 0.16 * fade;
+      camera.position.y = -scrollFade * 2.5;
+
+      renderer.render(scene, camera);
+      if (visible) raf = requestAnimationFrame(tick);
+    };
+
+    const start = () => {
+      if (!raf && visible) {
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(host);
+    const visibility = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) start();
+    });
+    visibility.observe(host);
+    window.addEventListener('pointermove', onPointer, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    resize();
+    start();
+
+    return () => {
+      visible = false;
+      cancelAnimationFrame(raf);
+      resizeObserver.disconnect();
+      visibility.disconnect();
+      window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('scroll', onScroll);
+      scene.traverse(object => {
+        object.geometry?.dispose?.();
+        object.material?.dispose?.();
+      });
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [nodeCount, radius, nodeColor, linkColor, pulseColor]);
+
+  return <div ref={hostRef} className={className} aria-hidden="true" />;
+}
