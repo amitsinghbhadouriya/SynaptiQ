@@ -110,3 +110,59 @@ export default function Analytics({ data, selected, previous, theme }) {
 
       <div className="an-grid an-grid--3">
         <Card title="Failure sources" icon={PieChart}>
+          {failingTotal ? (
+            <div className="an-donut">
+              <PlotlyChart figure={data.charts.donut} theme={theme} height={180} className="an-donut__chart" />
+              <ul className="an-legend">
+                {diagnoses.map(([code, n]) => (
+                  <li key={code}>
+                    <i style={{ background: DONUT_COLORS[code] }} />
+                    <span>{data.labels[code]}</span>
+                    <b>{pct(n / failingTotal)}</b>
+                    <small>{n}</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <Empty title="No failures in this run" />
+          )}
+        </Card>
+
+        <Card title="Evaluation funnel" icon={Filter}>
+          <ul className="an-funnel">
+            {data.funnel.map((step, index) => (
+              <li key={step.label}>
+                <span className="an-funnel__label">{step.label}</span>
+                <span className="an-funnel__bar">
+                  <span style={{ width: `${(step.value / funnelMax) * 100}%`, background: FUNNEL_SHADES[index] }}>
+                    <b>{step.value}</b>
+                  </span>
+                </span>
+                <span className="an-funnel__pct">{index ? pct(step.value / funnelMax) : '—'}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="d-footnote">Each stage is a subset of the one above. Unanswerable questions have no evidence to retrieve.</p>
+        </Card>
+
+        <Card title="Top configurations" icon={Trophy}>
+          <ul className="an-board">
+            {leaderboard.map((run, index) => (
+              <li key={run.run_id} className={run.run_id === selected.run_id ? 'is-selected' : ''}>
+                <span className="an-board__rank">{index + 1}</span>
+                <span className="an-board__name">
+                  <b>{runName(run)}</b>
+                  <small>{run.config_short}</small>
+                </span>
+                <span className="an-board__value">{pct(run.pass_rate)}</span>
+                <Progress value={run.pass_rate} />
+              </li>
+            ))}
+          </ul>
+          <p className="d-footnote">Ranked by overall pass rate on {selected.filename}. Correctness: {num(h.answer_correctness)}.</p>
+        </Card>
+      </div>
+    </div>
+  );
+}
