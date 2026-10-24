@@ -29,3 +29,34 @@ export default function TechStack() {
     const cards = STACK.map((item, index) => techCard(item, index));
     const out = [];
     for (let i = 0; i < cards.length; i += perRow) out.push(cards.slice(i, i + perRow));
+    return out;
+  }, [perRow]);
+
+  return (
+    <section className="section section--alt" id="stack">
+      <div className="section__inner">
+        <SectionHeading eyebrow="06 — Technology stack">Built on a Python-first stack</SectionHeading>
+        <p className="section__hint">Hover a card to bring it forward.</p>
+        <div className="stack" ref={wrapRef}>
+          {rows.map((row, index) => (
+            <BounceCards
+              key={`${perRow}-${index}`}
+              className="stack__row"
+              images={row}
+              containerWidth={Math.max(cardSize, width)}
+              containerHeight={cardSize + 70}
+              cardSize={cardSize}
+              spread={spread}
+              rotation={7}
+              arc={index % 2 ? -10 : 10}
+              pushDistance={Math.round(cardSize * 0.45)}
+              hoverScale={1.08}
+              bounciness={0.55}
+              animationDelay={0.2 + index * 0.25}
+              animationStagger={0.07}
+              borderWidth={3}
+              borderColor="#1b1f2a"
+              radius={22}
+              shadow
+            />
+          ))}
