@@ -154,3 +154,81 @@ export default function Documents({ data, theme, act }) {
                     <td>
                       <Badge tone={TYPE_TONE[doc.file_type]}>{doc.file_type}</Badge>
                     </td>
+                    <td className="num">{doc.pages ? `${doc.pages} pages` : doc.sections ?? '—'}</td>
+                    <td className="num">{doc.chunks}</td>
+                    <td>
+                      {doc.questions ? (
+                        <span className="d-muted">
+                          {doc.questions} questions · {doc.approved} approved{doc.pending ? ` · ${doc.pending} pending` : ''}
+                        </span>
+                      ) : (
+                        <Badge tone="neutral">none yet</Badge>
+                      )}
+                    </td>
+                    <td className="num">{doc.runs}</td>
+                    <td className="num">{pct(doc.last_pass_rate)}</td>
+                    <td className="d-muted">{ago(doc.created_at)}</td>
+                    <td>{actions(doc)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="d-doc-grid">
+            {shown.map(doc => (
+              <article key={doc.document_id} className="d-doc-card">
+                <div className="d-doc-card__top">
+                  <FileAvatar type={doc.file_type} />
+                  {actions(doc)}
+                </div>
+                <h3>{doc.filename}</h3>
+                <dl>
+                  <div>
+                    <dt>Chunks</dt>
+                    <dd>{doc.chunks}</dd>
+                  </div>
+                  <div>
+                    <dt>Questions</dt>
+                    <dd>{doc.questions}</dd>
+                  </div>
+                  <div>
+                    <dt>Pass rate</dt>
+                    <dd>{pct(doc.last_pass_rate)}</dd>
+                  </div>
+                </dl>
+                <p className="d-cell-sub">Added {ago(doc.created_at)}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {confirm && createPortal(
+        <div className="d-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <div className="d-modal__panel d-modal__panel--sm">
+            <h2 id="confirm-title">Delete {confirm.filename}?</h2>
+            <p>This permanently removes the document, its chunks and vectors, its test questions and every run on it.</p>
+            <div className="d-modal__actions">
+              <Button variant="ghost" theme={theme} onClick={() => setConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="dark"
+                theme={theme}
+                icon={Trash2}
+                onClick={() => {
+                  act.deleteDocument(confirm.document_id);
+                  setConfirm(null);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
