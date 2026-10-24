@@ -114,3 +114,62 @@ export default function Diagnosis() {
                   </span>
                 </div>
               );
+            })}
+          </div>
+
+          <figure className="code-card cursor-target" data-cursor-label="backend/root_cause.py">
+            <figcaption className="code-card__header">
+              <div className="code-card__left">
+                <span className="code-card__dots" aria-hidden="true">
+                  <i className="dot--red" />
+                  <i className="dot--yellow" />
+                  <i className="dot--green" />
+                </span>
+                <span className="code-card__filename">
+                  <FileCode2 size={14} className="code-card__icon" />
+                  backend/root_cause.py
+                </span>
+              </div>
+              <div className="code-card__actions">
+                <span className="code-card__version">Python 3.11</span>
+                <button
+                  type="button"
+                  className="code-card__copy-btn"
+                  onClick={copyCode}
+                  title="Copy Python code"
+                >
+                  {copied ? (
+                    <>
+                      <Check size={12} className="text-good" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </figcaption>
+            <pre className="code-card__pre">
+              <code>
+                {CODE.map(([kind, text], i) =>
+                  kind === 'n' ? '\n' : (
+                    <span key={i} className={`tok tok--${kind}`}>
+                      {text}
+                    </span>
+                  )
+                )}
+              </code>
+            </pre>
+            <div className="code-card__footer">
+              <Info size={13} />
+              <span>Deterministic Python 3.11 classification · 100% test coverage</span>
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+  );
+}
