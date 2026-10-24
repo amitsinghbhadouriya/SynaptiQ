@@ -157,3 +157,82 @@ export default function BounceCards({
           } else {
             [card.scale, card.vs] = step(card.scale, card.vs, targetScale, popStiffness, popDamping, h);
           }
+        }
+        moving +=
+          Math.abs(card.vx) +
+          Math.abs(card.vy) +
+          Math.abs(card.vr) +
+          Math.abs(card.vs) * 100 +
+          Math.abs(targetX - card.x) +
+          Math.abs(targetY - card.y) +
+          Math.abs(targetRotate - card.rotate) +
+          Math.abs(targetScale - card.scale) * 100 +
+          (appeared ? 0 : 1);
+        el.style.transform = `translate(-50%, -50%) translate3d(${card.x.toFixed(2)}px, ${card.y.toFixed(2)}px, 0) rotate(${card.rotate.toFixed(3)}deg) scale(${Math.max(0, card.scale).toFixed(4)})`;
+      }
+
+      if (state.layer !== hovered) {
+        state.layer = hovered;
+        cardRefs.current.forEach((el, i) => {
+          if (!el) return;
+          el.style.zIndex = i === hovered ? String(s.slots.length + 1) : String(i + 1);
+          el.toggleAttribute('data-active', i === hovered);
+        });
+      }
+
+      if (moving > 0.02) raf = requestAnimationFrame(frame);
+    };
+
+    const wake = () => {
+      if (raf || !alive) return;
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
+    wakeRef.current = wake;
+
+    const pick = event => {
+      const s = settingsRef.current;
+      const rect = root.getBoundingClientRect();
+      const px = event.clientX - rect.left - rect.width / 2;
+      const py = event.clientY - rect.top - rect.height / 2;
+      let best = -1;
+      let distance = Infinity;
+      s.slots.forEach((slot, i) => {
+        const gap = Math.abs(px - slot.x);
+        if (gap < distance) {
+          distance = gap;
+          best = i;
+        }
+      });
+      if (best < 0) return -1;
+      const slot = s.slots[best];
+      const half = s.cardSize / 2;
+      if (Math.abs(py - slot.y) > half + 12 || distance > half + 12) return -1;
+      if (state.hovered >= 0 && state.hovered !== best) {
+        const current = s.slots[state.hovered];
+        if (current && Math.abs(px - current.x) - distance < 6) return state.hovered;
+      }
+      return best;
+    };
+
+    const onMove = event => {
+      const next = pick(event);
+      if (next !== state.hovered) {
+        state.hovered = next;
+        wake();
+      }
+    };
+    const onLeave = () => {
+      if (state.hovered !== -1) {
+        state.hovered = -1;
+        wake();
+      }
+    };
+    const onClick = event => {
+      const index = pick(event);
+      if (index < 0) return;
+      const card = bodies[index];
+      if (card && !reduce) card.vs -= 2.2;
+      wake();
+      clickRef.current?.(index);
+    };
