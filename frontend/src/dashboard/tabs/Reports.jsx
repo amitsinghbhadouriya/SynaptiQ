@@ -65,3 +65,71 @@ export default function Reports({ data, selected, theme, act }) {
                       {runName(run)} · {stamp(run.created_at)}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label>
+                <span>Candidate</span>
+                <select value={candidate} onChange={e => setCandidate(e.target.value)}>
+                  {runs.map(run => (
+                    <option key={run.run_id} value={run.run_id}>
+                      {runName(run)} · {stamp(run.created_at)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                variant="primary"
+                theme={theme}
+                icon={GitCompareArrows}
+                disabled={!baseline || !candidate || baseline === candidate}
+                onClick={() => act.compare(baseline, candidate)}
+              >
+                Compare
+              </Button>
+            </div>
+
+            {comparison && (
+              <div className="rp-result">
+                {comparison.warnings?.length > 0 && (
+                  <ul className="rp-warnings">
+                    {comparison.warnings.map(w => (
+                      <li key={w}>
+                        <TriangleAlert size={14} aria-hidden="true" /> {w}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="rp-changes">
+                  <span className="d-muted">Changed settings:</span>
+                  {Object.keys(comparison.config_changes || {}).length ? (
+                    Object.entries(comparison.config_changes).map(([key, change]) => (
+                      <Badge key={key} tone="accent">
+                        {key}: {String(change.baseline)} → {String(change.candidate)}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge tone="neutral">none</Badge>
+                  )}
+                  <span className="d-muted">· {comparison.sample_size} shared questions</span>
+                </div>
+                <div className="rp-grid">
+                  <div className="d-table-wrap">
+                    <table className="d-table">
+                      <thead>
+                        <tr>
+                          <th>Metric</th>
+                          <th className="num">Baseline</th>
+                          <th className="num">Candidate</th>
+                          <th className="num">Change</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comparison.metrics.map(row => (
+                          <tr key={`${row.metric}`}>
+                            <td>{row.metric}</td>
+                            <td className="num">{fmt(row.key, row.baseline)}</td>
+                            <td className="num">{fmt(row.key, row.candidate)}</td>
+                            <td className={`num rp-delta rp-delta--${better(row)}`}>
+                              {row.delta === null || row.delta === undefined
+                                ? '—'
+                                : `${row.delta > 0 ? '+' : ''}${fmt(row.key, row.delta)}`}
