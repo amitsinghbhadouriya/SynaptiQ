@@ -205,3 +205,72 @@ class Workspace:
                 progress(done, total, text)
 
         try:
+            with self._lock:
+                generator, fallback = create_generator(self.settings, embedder)
+                evaluator = Evaluator(self._retriever(embedder), generator, embedder, self.settings.ragas_enabled)
+                results, summary = evaluator.run(document, questions, config, modes, report)
+            summary["review"] = {
+                "approved": sum(1 for q in questions if q.review_status == "approved"),
+                "pending": sum(1 for q in questions if q.review_status == "pending"),
+            }
+            summary["environment"] = {
+                "embedding_backend": embedder.backend, "embedding_fallback": embedder.fallback_reason,
+                "vector_backend": self.store.backend, "llm_provider": generator.provider, "llm_fallback": fallback,
+                "ragas": ragas_adapter.status(self.settings.ragas_enabled),
+            }
+            run.summary = summary
+            run.status = "completed"
+            self.storage.save_results(run.run_id, results)
+        except Exception as exc:
+            log.exception("Run %s failed", run.run_id)
+            run.status = "failed"
+            run.error = f"{type(exc).__name__}: {str(exc)[:300]}"
+        finally:
+            run.duration_ms = int((time.perf_counter() - started) * 1000)
+            self.storage.save_run(run)
+            self.progress = {"active": False}
+        return run
+
+    def get_run(self, run_id: str) -> EvaluationRun:
+        run = self.storage.get_run(run_id)
+        if run is None:
+            raise NotFound(f"Run {run_id} was not found.")
+        return run
+
+    def run_recommendation(self, run_id: str, progress: ProgressFn | None = None) -> EvaluationRun:
+        base = self.get_run(run_id)
+        rec = base.summary.get("top_recommendation")
+        if not rec:
+            raise ValueError("This run has no recommendation to test (no failing questions with a suggestion).")
+        candidate = RunConfig.from_dict({**rec["candidate_config"], "label": f"Candidate: {rec['title']}"})
+        return self.run_evaluation(base.document_id, candidate, base.modes, label=candidate.label,
+                                   parent_run_id=base.run_id, progress=progress)
+
+    def compare(self, baseline_run_id: str, candidate_run_id: str, strict: bool = True) -> dict[str, Any]:
+        base, cand = self.get_run(baseline_run_id), self.get_run(candidate_run_id)
+        return compare_runs(base, cand, self.storage.get_results(base.run_id), self.storage.get_results(cand.run_id),
+                            strict=strict)
+
+    def export(self, run_id: str, fmt: str) -> tuple[str, str, str]:
+        run = self.get_run(run_id)
+        questions = self.storage.list_questions(run.document_id)
+        return export_run(run, self.storage.get_results(run_id), questions, fmt, self.settings.reports_dir)
+
+    # ----------------------------------------------------------------- demo
+    def load_demo(self, progress: Callable[[int, int, str], None] | None = None) -> dict[str, Any]:
+        """Ingest the bundled sample handbook with its reviewed test set, then run a real
+        baseline evaluation and the recommended candidate. Nothing is precomputed."""
+        doc_path = self.settings.sample_dir / DEMO_DOCUMENT
+        document, _ = self.ingest(doc_path.name, doc_path.read_bytes())
+        if not any(q.source == "curated" for q in self.storage.list_questions(document.document_id)):
+            questions = load_curated_set(self.settings.eval_sets_dir / DEMO_TEST_SET, document)
+            self._attach_support(document, questions)
+            self.storage.save_questions(questions)
+        baseline = self.run_evaluation(
+            document.document_id, self.default_config(**DEMO_BASELINE), label=DEMO_BASELINE["label"], progress=progress
+        )
+        candidate = None
+        if baseline.status == "completed" and baseline.summary.get("top_recommendation"):
+            candidate = self.run_recommendation(baseline.run_id, progress=progress)
+        return {"document_id": document.document_id, "baseline_run_id": baseline.run_id,
+                "candidate_run_id": candidate.run_id if candidate else None, "loaded_at": utc_now()}
