@@ -140,3 +140,74 @@ def _run_payload(run: EvaluationRun, include_results: bool = False) -> dict[str,
     if include_results and run.status == "completed":
         payload["results"] = to_jsonable(workspace().storage.get_results(run.run_id))
     return payload
+
+
+# ----------------------------------------------------------------- endpoints
+@app.get("/api/v1/health")
+def health() -> dict[str, Any]:
+    return {"status": "ok", "version": __version__, "environment": workspace().status()}
+
+
+@app.post("/api/v1/documents", status_code=201)
+async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
+    ws = workspace()
+    limit = ws.settings.max_upload_mb * 1024 * 1024
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, f"The file is larger than the {ws.settings.max_upload_mb} MB limit.")
+    try:
+        document, created = ws.ingest(file.filename or "upload", data)
+    except DocumentLoadError as exc:
+        raise HTTPException(422, {"code": exc.code, "message": exc.message}) from exc
+    return {"document_id": document.document_id, "filename": document.filename, "status": document.status,
+            "chunk_count": document.metadata.get("chunk_count"), "created": created}
+
+
+@app.get("/api/v1/documents")
+def list_documents() -> list[dict[str, Any]]:
+    return [d.summary() for d in workspace().storage.list_documents()]
+
+
+@app.delete("/api/v1/documents/{document_id}", status_code=204)
+def delete_document(document_id: str) -> Response:
+    workspace().delete_document(document_id)
+    return Response(status_code=204)
+
+
+@app.post("/api/v1/evaluation/questions/generate")
+def generate_questions(body: GenerateRequest) -> dict[str, Any]:
+    questions = workspace().generate_test_set(body.document_id, body.count, list(body.question_types))
+    return {"dataset_id": f"ds_{body.document_id}", "status": "review_required", "candidate_count": len(questions)}
+
+
+@app.post("/api/v1/evaluation/questions/import")
+def import_questions(body: ImportRequest) -> dict[str, Any]:
+    try:
+        questions = workspace().import_test_set(body.document_id, body.questions)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"dataset_id": f"ds_{body.document_id}", "status": "review_required", "imported": len(questions)}
+
+
+@app.get("/api/v1/evaluation/datasets/{dataset_id}")
+def get_dataset(dataset_id: str) -> dict[str, Any]:
+    document_id = dataset_id.removeprefix("ds_")
+    workspace().get_document(document_id)
+    questions = workspace().storage.list_questions(document_id)
+    return {"dataset_id": dataset_id, "document_id": document_id, "questions": [q.to_dict() for q in questions]}
+
+
+@app.patch("/api/v1/evaluation/questions/{question_id}")
+def review_question(question_id: str, body: ReviewRequest) -> dict[str, Any]:
+    question = workspace().review_question(question_id, body.review_status, question=body.question,
+                                           reference_answer=body.reference_answer)
+    return question.to_dict()
+
+
+@app.post("/api/v1/evaluation/runs", status_code=202)
+def create_run(body: RunRequest, background: BackgroundTasks, wait: bool = Query(False)) -> dict[str, Any]:
+    ws = workspace()
+    document_id = body.dataset_id.removeprefix("ds_")
+    ws.get_document(document_id)
+    if not ws.dataset_questions(document_id):
+        raise HTTPException(422, "This dataset has no questions. Generate or import a test set first.")
