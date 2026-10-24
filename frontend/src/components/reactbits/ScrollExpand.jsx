@@ -139,3 +139,74 @@ const ScrollExpand = ({
       const w = root.clientWidth || stageH;
       stage.style.setProperty('--se-title-size', `${clamp(w * 0.075, 20, 84)}px`);
       try {
+        if (typeof window !== 'undefined' && window.ScrollTrigger) {
+          window.ScrollTrigger.refresh();
+        }
+      } catch {}
+    };
+
+    const readProgress = () => {
+      const c = propsRef.current;
+      if (!c.enabled) return { p: 1, exit: 0 };
+      if (c.fixedHeight) {
+        const rect = track.getBoundingClientRect();
+        const vh = window.innerHeight || c.fixedHeight;
+        // As the section scrolls from entering the screen to reaching top, expand smoothly
+        const p = clamp((vh - rect.top) / (vh * 0.65), 0, 1);
+        return { p, exit: 0 };
+      }
+      const span = stageH * Math.max(0.01, c.scrollDistance);
+      const hold = stageH * Math.max(0.01, c.holdDistance);
+      if (c.useWindowScroll) {
+        const top = track.getBoundingClientRect().top;
+        const p = clamp(-top / span, 0, 1);
+        const exit = clamp((-top - span) / hold, 0, 1);
+        return { p, exit };
+      }
+      const p = clamp(root.scrollTop / span, 0, 1);
+      const exit = clamp((root.scrollTop - span) / hold, 0, 1);
+      return { p, exit };
+    };
+
+    const tick = () => {
+      const c = propsRef.current;
+      const k = c.smoothing <= 0 ? 1 : 1 - Math.exp(-1 / (60 * c.smoothing));
+      current.p += (target.p - current.p) * k;
+      current.exit += (target.exit - current.exit) * k;
+      if (Math.abs(target.p - current.p) < 0.0004 && Math.abs(target.exit - current.exit) < 0.0004) {
+        current.p = target.p;
+        current.exit = target.exit;
+        running = false;
+      }
+      applyProgress(current.p, current.exit);
+      raf = running ? requestAnimationFrame(tick) : 0;
+    };
+
+    const kick = () => {
+      if (running) return;
+      running = true;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      target = readProgress();
+      if (propsRef.current.smoothing <= 0 || reduceMotion) {
+        current = { ...target };
+        applyProgress(current.p, current.exit);
+        return;
+      }
+      kick();
+    };
+
+    const onResize = () => {
+      measure();
+      target = readProgress();
+      current = { ...target };
+      applyProgress(current.p, current.exit);
+    };
+
+    measure();
+    target = readProgress();
+    current = { ...target };
+    applyProgress(current.p, current.exit);
+
