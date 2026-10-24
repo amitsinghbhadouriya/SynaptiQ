@@ -128,3 +128,69 @@ with tab_runs:
                         f"Run {run.status}: {run.summary.get('passed', 0)}/{run.summary.get('questions', 0)} passed."
                         if run.status == "completed" else f"Run failed: {run.error}"
                     )
+
+    runs = [r for r in workspace.storage.list_runs() if r.status == "completed"]
+    if not runs:
+        st.info("No completed runs yet.")
+    else:
+        st.subheader("Run history")
+        st.dataframe(runs_frame(runs), width="stretch", hide_index=True)
+        run_ids = [r.run_id for r in runs]
+        default = run_ids.index(st.session_state["selected_run_id"]) if st.session_state.get("selected_run_id") in run_ids else 0
+        run_id = st.selectbox("Inspect run", run_ids, index=default,
+                              format_func=lambda rid: next(f"{r.label or r.configuration.short()} — {doc_names.get(r.document_id, '')}" for r in runs if r.run_id == rid))
+        run = workspace.get_run(run_id)
+        results = workspace.storage.get_results(run_id)
+        questions = workspace.storage.list_questions(run.document_id)
+        s = run.summary
+        m = st.columns(5)
+        m[0].metric("Pass rate", f"{s['pass_rate']:.0%}")
+        m[1].metric("Hit@k", f"{(s['headline'].get('hit_at_k') or 0):.0%}")
+        m[2].metric("Context recall", f"{(s['headline'].get('context_recall') or 0):.2f}")
+        m[3].metric("Faithfulness", "—" if s['headline'].get('faithfulness') is None else f"{s['headline']['faithfulness']:.2f}")
+        m[4].metric("Correctness", "—" if s['headline'].get('answer_correctness') is None else f"{s['headline']['answer_correctness']:.2f}")
+
+        doc_runs = [r for r in runs if r.document_id == run.document_id]
+        c1, c2 = st.columns(2)
+        c1.plotly_chart(go_fig.Figure(charts.trend_figures(doc_runs)["pass_rate"]), width="stretch")
+        donut = charts.failure_donut(s, LABELS)
+        if donut:
+            c2.plotly_chart(go_fig.Figure(donut), width="stretch")
+        else:
+            c2.success("No failing questions in this run.")
+
+        st.subheader("Per-question results")
+        frame = results_frame(results, questions)
+        st.dataframe(frame, width="stretch", hide_index=True)
+        d1, d2 = st.columns(2)
+        d1.download_button("Download CSV", frame.to_csv(index=False), f"synaptiq_{run_id}.csv", "text/csv")
+        d2.download_button("Download JSON", workspace.export(run_id, "json")[2], f"synaptiq_{run_id}.json", "application/json")
+        with st.expander("Run configuration"):
+            st.code(json.dumps(run.configuration.to_dict(), indent=2), language="json")
+
+# ----------------------------------------------------------------- compare
+with tab_compare:
+    runs = [r for r in workspace.storage.list_runs() if r.status == "completed"]
+    if len(runs) < 2:
+        st.info("Two completed runs are needed for a comparison.")
+    else:
+        label_of = {r.run_id: f"{r.label or r.configuration.short()} · {r.created_at[:16]}" for r in runs}
+        c1, c2 = st.columns(2)
+        base = c1.selectbox("Baseline", list(label_of), index=1, format_func=label_of.get)
+        cand = c2.selectbox("Candidate", list(label_of), index=0, format_func=label_of.get)
+        if base == cand:
+            st.warning("Pick two different runs.")
+        else:
+            try:
+                comparison = workspace.compare(base, cand, strict=True)
+            except IncompatibleRuns as exc:
+                st.error(str(exc))
+            else:
+                for warning in comparison["warnings"]:
+                    st.warning(warning)
+                st.write("Changed settings:", comparison["config_changes"] or "none")
+                st.dataframe(pd.DataFrame(comparison["metrics"]), width="stretch", hide_index=True)
+                st.plotly_chart(go_fig.Figure(charts.comparison_figure(comparison)), width="stretch")
+                q = comparison["questions"]
+                st.write(f"Fixed: {len(q['fixed'])} · Regressed: {len(q['regressed'])} · "
+                         f"Still failing: {len(q['still_failing'])} · Still passing: {q['still_passing']}")
