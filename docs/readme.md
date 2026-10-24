@@ -39,3 +39,44 @@ Explore the documentation guides below:
 
 ---
 
+## Quick Architecture Summary
+
+```
++-----------------------------------------------------------------------+
+|                         USER INTERFACE (FRONTEND)                     |
+|   React 19 + Vite   *   Tailored Dark Theme   *   3D Three.js Hero   |
+|   Landing Page      *   Evaluation Dashboard  *   Streamlit Workbench |
++-----------------------------------+-----------------------------------+
+                                    |
+          (Streamlit Component Bridge OR FastAPI REST Calls)
+                                    |
++-----------------------------------v-----------------------------------+
+|                        SYNAPTIQ BACKEND CORE (PYTHON)                 |
+|                                                                       |
+|  [Document Loader]  -->  [Chunking Engine]  -->  [Embedding Model]   |
+|    (PDF, DOCX, TXT)        (Offsets & IDs)         (SentenceTransf.)  |
+|                                                                       |
+|  [Retriever Engine] -->  [Generator Engine] -->  [Metrics Scorer]     |
+|    (Top-k Search)          (Offline/Claude)        (Ragas + Custom)   |
+|                                                                       |
+|  [Root-Cause Engine] ->  [Recommendations]  -->  [Experiment Runner]  |
+|    (7 Failure Modes)       (1 Targeted Fix)        (Before vs After)  |
++-----------------------------------+-----------------------------------+
+                                    |
+            +-----------------------+-----------------------+
+            |                                               |
++-----------v-----------+                       +-----------v-----------+
+|   CHROMADB VECTOR DB  |                       |   SQLITE RELATIONAL   |
+|   Document Chunks     |                       |   Documents & Tests   |
+|   Dense Embeddings    |                       |   Run History & Diffs |
++-----------------------+                       +-----------------------+
+```
+
+---
+
+## Core Philosophy
+
+1. **Evidence-Grounded**: Every evaluation is tied to exact character offsets in your source files, not vague summaries.
+2. **Local-First & Offline**: Runs 100% locally on your computer with zero external API calls by default.
+3. **Deterministic Diagnostics**: Uses clear, explainable logic rules rather than asking another black-box LLM to guess what went wrong.
+4. **Fair Benchmarks**: Tests baseline and candidate configurations against the exact same questions and evidence spans.
