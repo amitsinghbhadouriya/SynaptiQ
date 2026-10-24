@@ -133,3 +133,71 @@ export default function Reports({ data, selected, theme, act }) {
                               {row.delta === null || row.delta === undefined
                                 ? '—'
                                 : `${row.delta > 0 ? '+' : ''}${fmt(row.key, row.delta)}`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div>
+                    <PlotlyChart figure={data.charts.comparison} theme={theme} height={300} />
+                    <div className="rp-questions">
+                      <Badge tone="good">{comparison.questions.fixed.length} fixed</Badge>
+                      <Badge tone="bad">{comparison.questions.regressed.length} regressed</Badge>
+                      <Badge tone="neutral">{comparison.questions.still_failing.length} still failing</Badge>
+                      <Badge tone="neutral">{comparison.questions.still_passing} still passing</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card title="Run history" icon={History}>
+        {runs.length ? (
+          <div className="d-table-wrap">
+            <table className="d-table d-table--click">
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Document</th>
+                  <th>Configuration</th>
+                  <th>Embeddings</th>
+                  <th className="num">Questions</th>
+                  <th className="num">Pass rate</th>
+                  <th className="num">Duration</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.runs.map(run => (
+                  <tr
+                    key={run.run_id}
+                    className={run.run_id === selected?.run_id ? 'is-selected' : ''}
+                    onClick={() => run.status === 'completed' && act.selectRun(run.run_id)}
+                  >
+                    <td>
+                      <span className="d-cell-strong">{runName(run)}</span>
+                      <span className="d-cell-sub">{run.run_id}</span>
+                    </td>
+                    <td className="d-muted">{run.filename}</td>
+                    <td className="d-muted">{run.config_short}</td>
+                    <td className="d-muted">{run.config.embedding_backend}</td>
+                    <td className="num">{run.questions ?? '—'}</td>
+                    <td className="num">{run.status === 'completed' ? pct(run.pass_rate) : <Badge tone="bad">{run.status}</Badge>}</td>
+                    <td className="num">{ms(run.duration_ms)}</td>
+                    <td className="d-muted">{stamp(run.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty icon={FileBarChart} title="No runs recorded yet" />
+        )}
+      </Card>
+    </div>
+  );
+}
