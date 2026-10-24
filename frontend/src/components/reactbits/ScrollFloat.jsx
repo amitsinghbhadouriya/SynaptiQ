@@ -190,3 +190,68 @@ const ScrollFloat = ({
         add(
           {
             yPercent: 120 * reach * sign,
+            scaleY: stretch,
+            scaleX: squeeze,
+            transformOrigin: sign > 0 ? '50% 100%' : '50% 0%'
+          },
+          { ease: swell, yPercent: 0, scaleY: 1, scaleX: 1 }
+        );
+        add({ rotation: 0 }, { ease: sway, rotation: -16 * sign });
+        add({ opacity: 0 }, { ease: p => clamp01(timing(p) * 2.5), opacity: 1 });
+      } else {
+        add(
+          {
+            opacity: 0,
+            yPercent: 120 * reach * sign,
+            scaleY: stretch,
+            scaleX: squeeze,
+            transformOrigin: sign > 0 ? '50% 0%' : '50% 100%'
+          },
+          { ease, opacity: 1, yPercent: 0, scaleY: 1, scaleX: 1 }
+        );
+      }
+
+      if (shiftColor) {
+        add({ '--scroll-float-mix': 1 }, { ease: p => smoothstep(0.5, 1, timing(p)), '--scroll-float-mix': 0 });
+      }
+    });
+
+    return () => mm.revert();
+  }, [
+    mounted,
+    scrollContainerRef,
+    text,
+    effect,
+    splitBy,
+    direction,
+    order,
+    shiftColor,
+    animationDuration,
+    ease,
+    scrollStart,
+    scrollEnd,
+    stagger,
+    distance,
+    stretch,
+    smoothing
+  ]);
+
+  return (
+    <h2
+      ref={containerRef}
+      className={`scroll-float ${effect === 'float' ? '' : 'scroll-float--open'} ${containerClassName}`}
+    >
+      {text !== null && <span className="scroll-float-sr">{text}</span>}
+      <span
+        ref={textRef}
+        className={`scroll-float-text ${textClassName}`}
+        style={text === null ? shiftStyle : undefined}
+        aria-hidden={text !== null ? true : undefined}
+      >
+        {splitText ?? children}
+      </span>
+    </h2>
+  );
+};
+
+export default ScrollFloat;
