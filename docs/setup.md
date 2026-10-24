@@ -93,3 +93,51 @@ pip install -r requirements.txt
 ## 5. How to Launch SynaptiQ
 
 You can run SynaptiQ using either of two commands:
+
+### Option A: The Full Web App (Streamlit Mode) - Recommended
+```bash
+streamlit run app.py
+```
+- **URL**: Open your browser at **`http://localhost:8501`**.
+- **What you get**: The complete 3D landing page, the evaluation dashboard, and the native Streamlit Workbench.
+
+### Option B: The Standalone REST API (FastAPI Mode)
+```bash
+uvicorn backend.api:app --reload --port 8000
+```
+- **Web App**: Open **`http://localhost:8000`** (serves the exact same React UI from `frontend/dist`).
+- **Interactive API Documentation**: Open **`http://localhost:8000/docs`** (Swagger UI to test endpoints interactively).
+
+> **Important**: Do not run Streamlit and FastAPI at the same time using the same storage folder, as SQLite and ChromaDB require exclusive local file access.
+
+---
+
+## 6. Frontend Development (Optional)
+
+If you wish to edit the React frontend, you will need Node.js 18+:
+
+```bash
+# Navigate to the frontend directory
+cd frontend
+
+# Install frontend npm packages
+npm install
+
+# Start Vite live-reload development server
+npm run dev
+# Opens at http://localhost:5173 and proxies backend calls to http://localhost:8000
+
+# When you are done editing, rebuild the production bundle:
+npm run build
+# Compiles into frontend/dist/ which is served by both Streamlit and FastAPI
+```
+
+---
+
+## 7. Running the 10-Second Demo
+
+Once the application opens in your browser:
+1. Click the glowing **"Launch Dashboard →"** button.
+2. In the top banner, click **"Load demo workspace"**.
+3. SynaptiQ will automatically ingest the bundled *Lumen Labs Employee Handbook*, run a baseline evaluation, diagnose failures, and execute the recommended fix as a candidate run.
+4. You will see an immediate side-by-side comparison (typically showing a pass rate increase from 71% to 86%).
