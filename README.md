@@ -237,3 +237,83 @@ Interactive docs at `/docs` when uvicorn is running.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/v1/health` | Status and active backends |
+| POST | `/api/v1/documents` | Upload (multipart `file`) → `document_id`, `chunk_count` |
+| GET / DELETE | `/api/v1/documents[/{id}]` | List / delete (removes chunks, vectors, questions, runs) |
+| POST | `/api/v1/evaluation/questions/generate` | Candidate questions (`review_required`) |
+| POST | `/api/v1/evaluation/questions/import` | Import reviewed questions with evidence quotes |
+| GET | `/api/v1/evaluation/datasets/{dataset_id}` | Questions, references, evidence, review status |
+| PATCH | `/api/v1/evaluation/questions/{id}` | Approve / reject / edit |
+| POST | `/api/v1/evaluation/runs` | Queue a run (`?wait=true` to run synchronously) |
+| GET | `/api/v1/evaluation/runs[/{id}]` | Run status, aggregate metrics, per-question results |
+| POST | `/api/v1/evaluation/runs/{id}/recommendation` | Run the top recommendation as a candidate |
+| POST | `/api/v1/evaluation/compare` | Compare two runs (409 if question sets differ, unless `strict=false`) |
+| GET | `/api/v1/evaluation/runs/{id}/export?format=csv\|json` | Export |
+| POST | `/api/v1/demo` | Load the demo workspace |
+
+Responses carry an `x-request-id`; requests are logged without document text. Add authentication,
+HTTPS and rate limiting before exposing the API beyond localhost.
+
+---
+
+## Project structure
+
+```text
+synaptiq/
+├── app.py                      # Streamlit entry point (Home, Dashboard, Workbench)
+├── streamlit_ui/               # component wrapper, shared helpers, pages
+├── backend/
+│   ├── config.py               # settings from .env
+│   ├── document_loader.py      # PDF / DOCX / TXT
+│   ├── chunking.py             # sentence-aware chunks with stable IDs and offsets
+│   ├── embeddings.py           # Sentence Transformers + hashing fallback
+│   ├── vector_store.py         # ChromaDB + in-memory fallback
+│   ├── retriever.py, generator.py, synthetic_qa.py
+│   ├── metrics.py, ragas_adapter.py, evaluator.py
+│   ├── root_cause.py, recommendations.py, experiments.py
+│   ├── storage.py              # SQLite run history
+│   ├── charts.py, reports.py   # Plotly figures, pandas tables, exports
+│   ├── service.py, ui_bridge.py, process_lock.py
+│   └── api.py                  # FastAPI app
+├── frontend/                   # React source + pre-built dist/
+├── data/sample_docs/           # sample handbook (TXT, PDF, DOCX)
+├── data/evaluation_sets/       # manually reviewed test set for the demo
+├── scripts/make_sample_docs.py
+├── tests/                      # pytest suite
+├── docs/screenshots/
+├── storage/                    # created at runtime (ChromaDB, SQLite, uploads) — not committed
+└── reports/                    # exports — check privacy before sharing
+```
+
+---
+
+## Testing
+
+```bash
+pytest
+```
+
+The suite runs offline (hashing embeddings, in-memory vectors) and covers parsing of all three file
+types and their error cases, chunking, retrieval scoring, the offline and Claude generator adapters
+(with a fake client), metrics, every diagnosis rule, recommendations, comparisons, storage integrity,
+the cross-process storage lock and the REST API end to end.
+
+---
+
+## Limitations
+
+* Metrics are transparent heuristics; validate a sample of judgements manually.
+* Offline test-set generation produces template questions — review them, or use Claude for better ones.
+* Root-cause diagnosis is evidence-backed inference, not proof of causality.
+* Small test sets give preliminary results; the comparison view says so.
+* Scanned PDFs need OCR, which is out of scope.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `pip install` fails on torch/chromadb | Use Python 3.11 or 3.12 |
+| Dashboard shows "Starting SynaptiQ — loading the embedding model…" for long | First run downloads the model; needs internet once |
+| "Another SynaptiQ process is already using …" | Stop the other server or set separate `CHROMA_PATH` / `DB_PATH` |
+| "The web UI build is missing" | `npm --prefix frontend install && npm --prefix frontend run build` |
+| Embeddings show *hashing* in Environment | The model could not load (offline); results are still valid but lexical |
+| Ragas shows unavailable | `pip install -r requirements.txt` (keeps the langchain-community pin) |
