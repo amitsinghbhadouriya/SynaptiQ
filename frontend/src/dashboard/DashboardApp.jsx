@@ -358,3 +358,123 @@ export default function DashboardApp({ data, notice, download, apiError, mode, s
     if (!files.length) return;
     const limit = (data?.status?.limits?.max_upload_mb ?? 20) * 1024 * 1024;
     const tooBig = files.filter(f => f.size > limit);
+    if (tooBig.length) {
+      pushToast('error', `${tooBig.map(f => f.name).join(', ')} exceeds the upload limit.`);
+      return;
+    }
+    const payload = await Promise.all(files.map(async f => ({ name: f.name, data: await fileToBase64(f) })));
+    runLong('upload', { files: payload }, `Uploading and indexing ${files.map(f => f.name).join(', ')}…`);
+  };
+
+  const failing = selected ? selected.questions - selected.passed : 0;
+
+  if (!data) {
+    return (
+      <div className="dash">
+        <div className="d-fatal">
+          <h1>Dashboard unavailable</h1>
+          <p>{apiError || 'Waiting for data from the SynaptiQ backend…'}</p>
+          <Button variant="ghost" theme={theme} onClick={() => send({ type: 'navigate', page: 'home' })}>
+            Back to the landing page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const pages = {
+    overview: <Overview data={data} selected={selected} previous={previous} theme={theme} act={act} />,
+    documents: <Documents data={data} theme={theme} act={act} />,
+    evaluations: <Evaluations data={data} selected={selected} theme={theme} act={act} />,
+    analytics: <Analytics data={data} selected={selected} previous={previous} theme={theme} />,
+    reports: <Reports data={data} selected={selected} theme={theme} act={act} />
+  };
+
+  return (
+    <div className="dash">
+      {pending && <div className="d-progressbar" aria-hidden="true" />}
+      <TopBar
+        tab={tab}
+        onTab={next => {
+          setTab(next);
+          window.scrollTo({ top: 0 });
+        }}
+        theme={theme}
+        onTheme={changeTheme}
+        status={data.status}
+        failing={failing}
+        mode={mode}
+        onBell={() => setTab('evaluations')}
+        onDemo={act.demo}
+        onNavigate={page => send({ type: 'navigate', page })}
+      />
+
+      {apiError && (
+        <div className="d-banner" role="alert">
+          <TriangleAlert size={15} aria-hidden="true" /> {apiError}
+        </div>
+      )}
+
+      <main className="d-main">
+        <div key={tab} className="d-enter">
+          {pages[tab]}
+        </div>
+      </main>
+
+      <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" multiple hidden onChange={onFiles} />
+
+      {dialog?.kind === 'run' && (
+        <RunDialog
+          data={data}
+          documentId={dialog.documentId}
+          selected={selected}
+          theme={theme}
+          onClose={() => setDialog(null)}
+          onSubmit={payload => {
+            setDialog(null);
+            setTab(tab === 'overview' ? 'overview' : 'evaluations');
+            runLong('run_eval', payload, 'Running retriever-only, generator-only and end-to-end tests…');
+          }}
+        />
+      )}
+      {dialog?.kind === 'generate' && (
+        <GenerateDialog
+          data={data}
+          documentId={dialog.documentId}
+          theme={theme}
+          onClose={() => setDialog(null)}
+          onSubmit={payload => {
+            setDialog(null);
+            runLong('generate_tests', payload, 'Generating candidate test questions…');
+          }}
+        />
+      )}
+
+      {pending && (
+        <div className="d-pending" role="status" aria-live="polite">
+          <LoaderCircle size={18} className="d-spin" aria-hidden="true" />
+          <div>
+            <b>Working…</b>
+            <span>{pending.label}</span>
+            <small>The first run can take a little longer while the embedding model loads.</small>
+          </div>
+        </div>
+      )}
+
+      <div className="d-toasts" aria-live="polite">
+        {toasts.map(toast => {
+          const Icon = TOAST_ICON[toast.level] || Info;
+          return (
+            <div key={toast.id} className={`d-toast d-toast--${toast.level}`}>
+              <Icon size={16} aria-hidden="true" />
+              <span>{toast.message}</span>
+              <button type="button" onClick={() => setToasts(list => list.filter(t => t.id !== toast.id))} aria-label="Dismiss">
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
