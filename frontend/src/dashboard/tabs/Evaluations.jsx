@@ -132,3 +132,70 @@ function Results({ data, selected, theme, act }) {
         onRunCandidate={selected.top_recommendation ? id => { setOpen(null); act.runCandidate(id); } : null}
       />
     </>
+  );
+}
+
+function TestSet({ data, theme, act }) {
+  const [filter, setFilter] = useState('all');
+  const questions = data.questions;
+  const counts = { all: questions.length, pending: 0, approved: 0, rejected: 0 };
+  questions.forEach(q => {
+    counts[q.review_status] += 1;
+  });
+  const shown = questions.filter(q => filter === 'all' || q.review_status === filter);
+  const doc = data.documents.find(d => d.document_id === data.focus_document_id);
+
+  return (
+    <Card
+      title={doc ? `Test set · ${doc.filename}` : 'Test set'}
+      icon={FlaskConical}
+      actions={
+        doc && (
+          <Button variant="ghost" theme={theme} size="sm" icon={Sparkles} onClick={() => act.generate(doc.document_id)}>
+            Generate more
+          </Button>
+        )
+      }
+    >
+      <FilterPills
+        label="Filter by review status"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'all', label: 'All', count: counts.all },
+          { value: 'pending', label: 'Pending', count: counts.pending },
+          { value: 'approved', label: 'Approved', count: counts.approved },
+          { value: 'rejected', label: 'Rejected', count: counts.rejected }
+        ]}
+      />
+      {!questions.length ? (
+        <Empty icon={FlaskConical} title="No questions for this document">
+          Generate a test set, then approve or reject each question before trusting the scores.
+        </Empty>
+      ) : (
+        <ul className="d-qlist">
+          {shown.map(q => (
+            <li key={q.question_id} className={`d-qitem d-qitem--${q.review_status}`}>
+              <div className="d-qitem__main">
+                <div className="d-qitem__tags">
+                  <Badge tone="neutral">{TYPE_LABEL[q.type] || q.type}</Badge>
+                  <span className="d-cell-sub">{q.source}</span>
+                </div>
+                <p className="d-qitem__q">{q.question}</p>
+                <p className="d-qitem__a">
+                  <b>Reference:</b> {q.reference_answer}
+                </p>
+                {q.evidence.map(text => (
+                  <blockquote key={text} className="d-qitem__ev">
+                    {text}
+                  </blockquote>
+                ))}
+              </div>
+              <div className="d-qitem__review" role="group" aria-label="Review">
+                <button
+                  type="button"
+                  className={`d-review d-review--ok${q.review_status === 'approved' ? ' is-on' : ''}`}
+                  onClick={() => act.review(q.question_id, 'approved')}
+                  aria-pressed={q.review_status === 'approved'}
+                >
+                  <Check size={14} aria-hidden="true" /> Approve
