@@ -136,3 +136,72 @@ class Workspace:
                 path.unlink(missing_ok=True)
         log.info("Deleted document %s (%s)", document_id, document.filename)
 
+    # ------------------------------------------------------------ test sets
+    def _attach_support(self, document: Document, questions: list[EvalQuestion]) -> None:
+        config, _ = self.resolve(self.default_config())
+        for q in questions:
+            if q.evidence:
+                q.supporting_chunk_ids = supporting_chunk_ids(
+                    document, q.evidence, config.chunk_size, config.chunk_overlap, config.index_key
+                )
+
+    def generate_test_set(self, document_id: str, count: int = 10, types: list[str] | None = None) -> list[EvalQuestion]:
+        document = self.get_document(document_id)
+        count = max(1, min(count, self.settings.max_questions))
+        if self.settings.llm_enabled:
+            generator, fallback = create_generator(self.settings, None)
+            if fallback is None:
+                questions = generate_with_llm(document, generator, count=count)
+            else:
+                questions = generate_offline(document, count=count, types=types)
+        else:
+            questions = generate_offline(document, count=count, types=types, seed=int(time.time()) % 10_000)
+        self._attach_support(document, questions)
+        with self._lock:
+            self.storage.save_questions(questions)
+        return questions
+
+    def import_test_set(self, document_id: str, items: list[dict[str, Any]]) -> list[EvalQuestion]:
+        document = self.get_document(document_id)
+        questions = import_questions(document, items)
+        self._attach_support(document, questions)
+        self.storage.save_questions(questions)
+        return questions
+
+    def review_question(self, question_id: str, review_status: str | None = None, **edits: Any) -> EvalQuestion:
+        if review_status and review_status not in ("pending", "approved", "rejected"):
+            raise ValueError("review_status must be pending, approved or rejected")
+        if not self.storage.update_question(question_id, review_status=review_status, **edits):
+            if self.storage.get_question(question_id) is None:
+                raise NotFound(f"Question {question_id} was not found.")
+        return self.storage.get_question(question_id)
+
+    def dataset_questions(self, document_id: str) -> list[EvalQuestion]:
+        """Questions used for runs: everything except rejected ones."""
+        return self.storage.list_questions(document_id, include_rejected=False)
+
+    # ----------------------------------------------------------------- runs
+    def run_evaluation(
+        self, document_id: str, config: RunConfig | None = None, modes: list[str] | None = None,
+        label: str = "", parent_run_id: str | None = None, progress: ProgressFn | None = None,
+        run_id: str | None = None,
+    ) -> EvaluationRun:
+        document = self.get_document(document_id)
+        questions = self.dataset_questions(document_id)
+        if not questions:
+            raise ValueError("This document has no test questions yet. Generate or import a test set first.")
+        config, embedder = self.resolve(config or self.default_config())
+        modes = [m for m in (modes or list(MODES)) if m in MODES] or list(MODES)
+        run = EvaluationRun(
+            run_id=run_id or new_id("run"), document_id=document_id, dataset_id=f"ds_{document_id}", configuration=config,
+            modes=modes, status="running", label=label or config.label, parent_run_id=parent_run_id,
+        )
+        self.storage.save_run(run)
+        started = time.perf_counter()
+
+        def report(done: int, total: int, text: str) -> None:
+            self.progress = {"active": done < total, "run_id": run.run_id, "done": done, "total": total, "current": text}
+            if progress:
+                progress(done, total, text)
+
+        try:
