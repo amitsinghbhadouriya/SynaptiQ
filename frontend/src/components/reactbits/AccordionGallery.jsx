@@ -187,3 +187,67 @@ const AccordionGallery = ({
       e.preventDefault();
       setActive((i - 1 + count) % count);
     }
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      className={`accordion-gallery${vertical ? ' accordion-gallery--vertical' : ''}${className ? ` ${className}` : ''}`}
+      style={{
+        '--ag-accent': accentColor,
+        '--ag-overlay': overlayColor,
+        '--ag-text': textColor,
+        '--ag-gap': `${gap}px`,
+        '--ag-radius': `${radius}px`,
+        height: vertical ? `${Math.round(height * 1.6)}px` : `${height}px`
+      }}
+      role="list"
+      aria-label={items.some(item => item.content) ? 'Feature explanations' : 'Image accordion gallery'}
+    >
+      {items.map((item, i) => {
+        const isActive = i === active;
+        const Tag = item.link ? 'a' : 'div';
+        return (
+          <Tag
+            key={i}
+            ref={el => (panelRefs.current[i] = el)}
+            className={`ag-panel${isActive ? ' ag-panel--active' : ''}${item.content ? ' ag-panel--content' : ''}${panelClassName ? ` ${panelClassName}` : ''}`}
+            style={{ borderRadius: `${radius}px` }}
+            href={item.link || undefined}
+            onClick={e => handleClick(i, e)}
+            onMouseEnter={() => handleEnter(i)}
+            onFocus={() => setActive(i)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            role="listitem"
+            tabIndex={0}
+            aria-current={isActive ? 'true' : undefined}
+            aria-label={item.label}
+            data-cursor-label={item.cursorLabel}
+          >
+            <span className="ag-panel__frame">
+              <span className="ag-panel__media" ref={el => (mediaRefs.current[i] = el)}>
+                {item.media ?? <img src={item.image} alt={item.alt || item.label || ''} draggable="false" />}
+              </span>
+              <span className="ag-panel__overlay" aria-hidden="true" />
+            </span>
+            {item.collapsedLabel && (
+              <span className="ag-panel__collapsed" ref={el => (collapsedRefs.current[i] = el)} aria-hidden="true">
+                {item.collapsedLabel}
+              </span>
+            )}
+            {showLabels && (
+              <span className={`ag-panel__label${item.content ? ' ag-panel__label--content' : ''}`}>
+                <span className="ag-panel__bar" ref={el => (barRefs.current[i] = el)} />
+                <span className="ag-panel__text" ref={el => (textRefs.current[i] = el)}>
+                  {item.content ?? item.label}
+                </span>
+              </span>
+            )}
+          </Tag>
+        );
+      })}
+    </div>
+  );
+};
+
+export default AccordionGallery;
