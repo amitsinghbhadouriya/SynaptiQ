@@ -72,3 +72,40 @@ The agent evaluates these 3 inputs using a three-state model (`Pass`, `Fail`, or
 
 | Outcome Code | Meaning | Plain English Diagnosis | Next Recommended Action |
 |---|---|---|---|
+| **`PASS`** | Success | All active test modes passed. | No action needed. System is healthy. |
+| **`LIKELY_RETRIEVAL_FAILURE`** | Retrieval Miss | The generator answers correctly when given the evidence directly, but the retriever failed to find that evidence in the top-k results. | Inspect chunk size, chunk overlap, top-k, and vector embeddings. |
+| **`LIKELY_GENERATION_FAILURE`** | Generator Mistake | The correct evidence was retrieved, but the generator hallucinated, contradicted the facts, or failed to answer. | Inspect the prompt instructions, LLM model choice, or temperature. |
+| **`LIKELY_COMBINED_FAILURE`** | Both Failed | The retriever missed the evidence, and the generator failed the end-to-end test. | Fix retrieval first! You cannot evaluate generation without evidence. |
+| **`PIPELINE_INTERACTION_FAILURE`** | Integration Issue | Both retriever and generator pass when tested in isolation, but the end-to-end pipeline fails when combined. | Inspect prompt assembly, context truncation, or the ordering of chunks. |
+| **`CORRECT_BUT_UNGROUNDED`** | Lucky Guess | The final answer happened to match the reference answer, but the retrieved chunks did not actually contain the evidence. | Do not trust this answer as grounded; fix retrieval. |
+| **`UNCERTAIN_REQUIRES_REVIEW`** | Insufficient Data | Conflicting metrics or missing measurements make a confident verdict impossible. | Manually review the question and source document. |
+
+---
+
+## 5. Agent 3: Targeted Recommendation Agent (`recommendations.py`)
+
+Most evaluation tools show a dashboard of declining numbers and leave you guessing what to do next. The Recommendation Agent inspects the specific failure evidence of your run and produces **one single, high-probability fix**:
+
+### Examples of Automated Reasoning:
+- **Missing Top-k Rank**: If the required evidence chunk was found at rank #3, but your system was only retrieving top-1, the agent recommends:
+  > *"Increase top-k from 1 to 3. The supporting chunk was ranked #3, just outside the top-1 window."*
+- **Split Evidence**: If context recall is only 35% because an essential sentence was cut in half by a chunk boundary, the agent recommends:
+  > *"Use larger, overlapping chunks (e.g. 1100 chars with 180 overlap). The evidence is split across boundaries."*
+- **Vocabulary Mismatch**: If the retriever completely missed keywords, the agent recommends:
+  > *"Try a stronger embedding model (e.g. `all-mpnet-base-v2`). The current model failed to link these semantic terms."*
+- **Hallucinations on Unanswerable Queries**: If the system answered a question it should have declined, the agent recommends:
+  > *"Increase abstention threshold or activate the strict grounded prompt."*
+
+---
+
+## 6. Agent 4: Experiment Verification Agent (`experiments.py`)
+
+A recommendation is only a hypothesis until proven. 
+
+The Verification Agent takes the proposed configuration change and automatically runs a **Candidate Evaluation**:
+- **Identical Benchmark**: Evaluates the candidate against the exact same test questions.
+- **Delta Scoring**: Measures the change in pass rate (e.g. `71% → 86%`).
+- **Regression Detection**: Explicitly counts:
+  - **Fixed Questions**: Questions that previously failed and now pass.
+  - **Regressed Questions**: Questions that previously passed and now fail!
+- **Small-Sample Warning**: Alerts you if the test set is too small to declare statistical confidence.
