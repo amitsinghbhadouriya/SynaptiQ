@@ -108,3 +108,59 @@ export const TECH_SYMBOLS = {
   SQLite: `<g transform="translate(42, 42)">
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
       <path d="M4 6c0-2.2 3.6-4 8-4s8 1.8 8 4-3.6 4-8 4-8-1.8-8-4z" fill="#003b57" stroke="#0ea5e9" stroke-width="1.5"/>
+      <path d="M4 6v5c0 2.2 3.6 4 8 4s8-1.8 8-4V6" stroke="#0ea5e9" stroke-width="1.5"/>
+      <path d="M4 11v5c0 2.2 3.6 4 8 4s8-1.8 8-4v-5" stroke="#0ea5e9" stroke-width="1.5"/>
+      <path d="M17 3c-4 5-8 10-6 16" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </g>`,
+
+  Pytest: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <path d="M9 3h6M10 3v5l-5.5 10.5C3.8 20 4.8 22 6.5 22h11c1.7 0 2.7-2 2-3.5L14 8V3" stroke="#0ea5e9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M6.5 17h11l-2-4H8.5l-2 4z" fill="#0ea5e9" fill-opacity="0.25"/>
+      <path d="M9 14l2 2 4-4" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </g>`,
+
+  'Standard Python': `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="3" width="20" height="18" rx="3" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+      <path d="M6 8l4 4-4 4M12 16h6" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </g>`
+};
+
+// Compact standalone icon for the list below the bounce cards
+export function getTechIconSvg(name) {
+  const fullSvg = TECH_SYMBOLS[name] || TECH_SYMBOLS['Standard Python'];
+  // Extract the inner svg content and wrap in a clean 24x24 viewBox
+  const match = fullSvg.match(/<svg[^>]*>([\s\S]*?)<\/svg>/);
+  const inner = match ? match[1] : '';
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+export function techCard({ name, role, glyph }, index) {
+  const lines = wrapName(name);
+  const nameY = lines.length > 1 ? 206 : 226;
+  const symbol = TECH_SYMBOLS[name] || `<text x="66" y="77" text-anchor="middle" font-family="Space Grotesk, Inter, Segoe UI, sans-serif" font-size="32" font-weight="600" fill="#e9eef8">${esc(glyph || name.slice(0, 2))}</text>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161922"/><stop offset="1" stop-color="#0d0f15"/></linearGradient>
+    <pattern id="p" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#ffffff" stroke-opacity="0.035"/></pattern>
+  </defs>
+  <rect width="300" height="300" fill="url(#g)"/>
+  <rect width="300" height="300" fill="url(#p)"/>
+  <rect x="28" y="28" width="76" height="76" rx="18" fill="#3987e5" fill-opacity="0.12" stroke="#3987e5" stroke-opacity="0.55"/>
+  ${symbol}
+  <text x="272" y="52" text-anchor="end" font-family="ui-monospace, Consolas, monospace" font-size="15" fill="#7d8494">${String(index + 1).padStart(2, '0')}</text>
+  ${lines
+    .map(
+      (line, i) =>
+        `<text x="28" y="${nameY + i * 34}" font-family="Space Grotesk, Inter, Segoe UI, sans-serif" font-size="30" font-weight="600" fill="#eef0f5">${esc(line)}</text>`
+    )
+    .join('')}
+  <text x="28" y="268" font-family="Inter, Segoe UI, sans-serif" font-size="17" fill="#9aa1b0">${esc(role)}</text>
+</svg>`;
+  return { src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, alt: `${name} — ${role}` };
+}
