@@ -199,3 +199,205 @@ const traceShape = image => {
     for (let x = 1; x < width - 1; x++) {
       const i = y * width + x;
       const d = field[i];
+      if (d > 0) continue;
+      if (field[i - 1] <= 0 && field[i + 1] <= 0 && field[i - width] <= 0 && field[i + width] <= 0) continue;
+      const gx = field[i + 1] - field[i - 1];
+      const gy = field[i + width] - field[i - width];
+      const len = Math.hypot(gx, gy) || 1;
+      points.push(x + 0.5 - (d * gx) / len, y + 0.5 - (d * gy) / len);
+    }
+  }
+  const stride = Math.max(1, Math.ceil(points.length / 2 / 3000)) * 2;
+  const edges = [];
+  for (let i = 0; i < points.length; i += stride) edges.push(points[i], points[i + 1]);
+
+  const size = Math.max(logoWidth, logoHeight);
+  const glowPad = Math.ceil((size * 0.7) / CELL);
+  const glowWidth = Math.ceil(logoWidth / CELL) + glowPad * 2;
+  const glowHeight = Math.ceil(logoHeight / CELL) + glowPad * 2;
+  const tight = new Float32Array(glowWidth * glowHeight);
+  for (let y = 0; y < height; y++) {
+    const gy = Math.floor((y - pad) / CELL) + glowPad;
+    for (let x = 0; x < width; x++) {
+      const gx = Math.floor((x - pad) / CELL) + glowPad;
+      tight[gy * glowWidth + gx] += Math.exp(-Math.abs(field[y * width + x]) / 1.5) / (CELL * CELL);
+    }
+  }
+  const wide = tight.slice();
+  const tightRadius = Math.max(1, Math.round((size * 0.035) / CELL));
+  const wideRadius = Math.max(2, Math.round((size * 0.13) / CELL));
+  blurGrid(tight, glowWidth, glowHeight, tightRadius);
+  blurGrid(wide, glowWidth, glowHeight, wideRadius);
+  const tightNorm = (Math.sqrt(2 * Math.PI * (tightRadius * tightRadius + tightRadius)) * CELL) / 3;
+  const wideNorm = (Math.sqrt(2 * Math.PI * (wideRadius * wideRadius + wideRadius)) * CELL) / 3;
+  const glow = new Float32Array(glowWidth * glowHeight * 2);
+  for (let i = 0; i < glowWidth * glowHeight; i++) {
+    glow[i * 2] = tight[i] * tightNorm;
+    glow[i * 2 + 1] = wide[i] * wideNorm;
+  }
+
+  return {
+    field,
+    edges,
+    width,
+    height,
+    pad,
+    logoWidth,
+    logoHeight,
+    glow,
+    glowWidth,
+    glowHeight,
+    glowOffset: pad - glowPad * CELL
+  };
+};
+
+const spawnArc = (shape, time, focus) => {
+  const { edges, logoWidth, logoHeight } = shape;
+  const count = edges.length / 2;
+  if (count < 2) return null;
+  const size = Math.max(logoWidth, logoHeight);
+  let i = Math.floor(Math.random() * count);
+  if (focus) {
+    let found = false;
+    for (let attempt = 0; attempt < 40 && !found; attempt++) {
+      const j = Math.floor(Math.random() * count);
+      if (Math.hypot(edges[j * 2] - focus.x, edges[j * 2 + 1] - focus.y) < focus.radius) {
+        i = j;
+        found = true;
+      }
+    }
+    if (!found) return null;
+  }
+  const ax = edges[i * 2];
+  const ay = edges[i * 2 + 1];
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const j = Math.floor(Math.random() * count);
+    const bx = edges[j * 2];
+    const by = edges[j * 2 + 1];
+    const len = Math.hypot(bx - ax, by - ay);
+    if (len < size * 0.08 || len > size * 0.3) continue;
+    const nx = -(by - ay) / len;
+    const ny = (bx - ax) / len;
+    const bow = len * (0.2 + Math.random() * 0.3);
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const left = sampleField(shape, mx + nx * bow, my + ny * bow);
+    const right = sampleField(shape, mx - nx * bow, my - ny * bow);
+    if (Math.max(left, right) <= 0) continue;
+    return {
+      ax,
+      ay,
+      bx,
+      by,
+      bow: left >= right ? bow : -bow,
+      seed: 1 + Math.random() * 60,
+      born: time,
+      life: 0.35 + Math.random() * 0.45
+    };
+  }
+  return null;
+};
+
+const vertex = `#version 300 es
+in vec2 position;
+in vec2 uv;
+out vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 0.0, 1.0);
+}
+`;
+
+const fragment = `#version 300 es
+precision highp float;
+precision highp int;
+
+uniform sampler2D tFieldFrom;
+uniform sampler2D tGlowFrom;
+uniform sampler2D tFieldTo;
+uniform sampler2D tGlowTo;
+uniform vec4 uMapFrom;
+uniform vec4 uSizeFrom;
+uniform vec4 uMapTo;
+uniform vec4 uSizeTo;
+uniform float uMorph;
+uniform vec2 uResolution;
+uniform float uUnit;
+uniform float uTime;
+uniform float uPresence;
+uniform vec3 uHover;
+uniform float uHoverRadius;
+uniform vec4 uPulses[${PULSES}];
+uniform float uPulseBoost;
+uniform float uFlash;
+uniform vec3 uColor;
+uniform vec3 uGlowColor;
+uniform float uIntensity;
+uniform float uGlow;
+uniform float uThickness;
+uniform float uStrands;
+uniform float uBend;
+uniform float uCrackle;
+uniform float uFlicker;
+uniform float uFill;
+uniform float uInk;
+uniform vec4 uArcEnds[${ARCS}];
+uniform vec4 uArcShape[${ARCS}];
+
+in vec2 vUv;
+out vec4 fragColor;
+
+uint scramble(uint x) {
+  x ^= x >> 16u;
+  x *= 0x7feb352du;
+  x ^= x >> 15u;
+  x *= 0x846ca68bu;
+  x ^= x >> 16u;
+  return x;
+}
+
+float fieldAt(sampler2D tex, vec4 map, vec4 size, vec2 p) {
+  vec2 f = (p - map.xy) / map.z;
+  vec2 c = clamp(f, vec2(0.5), size.xy - 0.5);
+  return (textureLod(tex, c / size.xy, 0.0).r + length(f - c)) * map.z;
+}
+
+vec2 glowAt(sampler2D tex, vec4 map, vec4 size, vec2 p) {
+  vec2 f = (p - map.xy) / map.z - map.w;
+  return textureLod(tex, f / (size.zw * ${CELL}.0), 0.0).rg;
+}
+
+float shape(vec2 p, float k) {
+  float to = fieldAt(tFieldTo, uMapTo, uSizeTo, p);
+  if (k >= 1.0) return to;
+  return mix(fieldAt(tFieldFrom, uMapFrom, uSizeFrom, p), to, k);
+}
+
+vec2 aura(vec2 p, float k) {
+  vec2 to = glowAt(tGlowTo, uMapTo, uSizeTo, p);
+  if (k >= 1.0) return to;
+  return mix(glowAt(tGlowFrom, uMapFrom, uSizeFrom, p), to, k);
+}
+
+vec4 corner(ivec2 c, uint seed) {
+  uint h = scramble(uint(c.x) * 0x8da6b343u + uint(c.y) * 0xd8163841u + seed * 0xcb1ab31fu);
+  return vec4(uvec4(h, h >> 8u, h >> 16u, h >> 24u) & 255u) / 127.5 - 1.0;
+}
+
+vec2 drift(vec2 p, uint seed, out mat2 jac) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+  ivec2 c = ivec2(i);
+  vec4 ga = corner(c, seed);
+  vec4 gb = corner(c + ivec2(1, 0), seed);
+  vec4 gc = corner(c + ivec2(0, 1), seed);
+  vec4 gd = corner(c + ivec2(1, 1), seed);
+  vec2 fb = f - vec2(1.0, 0.0);
+  vec2 fc = f - vec2(0.0, 1.0);
+  vec2 fd = f - vec2(1.0);
+  vec2 va = vec2(dot(ga.xy, f), dot(ga.zw, f));
+  vec2 vb = vec2(dot(gb.xy, fb), dot(gb.zw, fb));
+  vec2 vc = vec2(dot(gc.xy, fc), dot(gc.zw, fc));
+  vec2 vd = vec2(dot(gd.xy, fd), dot(gd.zw, fd));
