@@ -35,3 +35,40 @@ This document walks you step-by-step through the **12-stage engineering pipeline
 ### Stage 3: Sentence-Aware Chunking (`backend/chunking.py`)
 - Cuts continuous text into smaller passages based on two configuration settings:
   - `chunk_size` (e.g. 700 characters)
+  - `chunk_overlap` (e.g. 100 characters)
+- **Sentence Integrity**: Never cuts a sentence in half. If a chunk boundary lands mid-sentence, it searches backwards for the last period, exclamation mark, or newline to keep thoughts intact.
+- **Stable IDs**: Assigns a unique, deterministic ID (`chk_<document_id>_<index>`) to every chunk.
+
+---
+
+### Stage 4: Embedding Generation (`backend/embeddings.py`)
+- Converts each text chunk into a 384-dimensional mathematical vector.
+- **Default Engine**: **Sentence Transformers** using the `all-MiniLM-L6-v2` model (~90 MB, runs fast on CPU).
+- **Offline Hashing Fallback**: If internet access is unavailable to download the model, SynaptiQ automatically falls back to deterministic lexical hashing vectors (`HashingEmbeddingBackend`). No runs will ever crash due to missing internet.
+
+---
+
+### Stage 5: Vector Store Indexing (`backend/vector_store.py`)
+- Saves the vector embeddings into local **ChromaDB** collections.
+- **Index Caching**: Calculates an `index_key` hash:
+  $$\text{index\_key} = \text{SHA1}(\text{backend} + \text{model} + \text{chunk\_size} + \text{chunk\_overlap})[:10]$$
+  If another run is started with the same chunking and model settings, SynaptiQ instantly reuses the indexed collection rather than recomputing embeddings.
+
+---
+
+### Stage 6: Test Set Preparation (`backend/synthetic_qa.py`)
+- Loads benchmark questions, reference answers, and **verbatim evidence quotes**.
+- **Quote Verification**: The loader locates the exact character start and end span of every evidence quote in the source document. If a quote cannot be found, it is rejected to ensure benchmarks are 100% grounded.
+
+---
+
+### Stage 7: Retriever Search (`backend/retriever.py`)
+- For each test question, converts the query text into a vector and searches ChromaDB using cosine distance.
+- Returns the top-$k$ most similar chunks (e.g. $k=1, 2, 4,$ etc.), ranked from most similar to least similar.
+- Calculates whether each retrieved chunk contains the reference evidence spans.
+
+---
+
+### Stage 8: Generator Response (`backend/generator.py`)
+- Produces answers under two different modes:
+  1. **Offline Extractive Mode (Default)**: Uses transparent sentence-matching heuristics to extract the most relevant factual answer directly from the supplied context. Completely offline and instant.
