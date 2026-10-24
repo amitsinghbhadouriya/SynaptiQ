@@ -132,3 +132,70 @@ Retrieves all questions for a given dataset.
 {
   "dataset_id": "ds_doc_e4f5a6b7c8",
   "document_id": "doc_e4f5a6b7c8",
+  "questions": [
+    {
+      "question_id": "q_001",
+      "question": "What is the standard password rotation window?",
+      "reference_answer": "90 calendar days.",
+      "question_type": "factual",
+      "review_status": "approved",
+      "evidence": [
+        {
+          "start": 1420,
+          "end": 1495,
+          "text": "All employee passwords must be rotated every 90 calendar days."
+        }
+      ]
+    }
+  ]
+}
+```
+
+### `PATCH /api/v1/evaluation/questions/{question_id}`
+Approve, reject, or edit a generated question.
+
+**Request Body**:
+```json
+{
+  "review_status": "approved",
+  "question": "Updated question text",
+  "reference_answer": "Updated reference answer"
+}
+```
+
+---
+
+## 5. Evaluation Runs Endpoints
+
+### `POST /api/v1/evaluation/runs`
+Queues or runs an evaluation across the 3 independent modes.
+
+**Query Parameter**:
+- `wait=true`: Runs synchronously and returns completed results.
+- `wait=false` (default): Queues the job and returns immediately with a poll URL.
+
+**Request Body**:
+```json
+{
+  "dataset_id": "ds_doc_e4f5a6b7c8",
+  "modes": ["retriever", "generator", "end_to_end"],
+  "configuration": {
+    "top_k": 4,
+    "chunk_size": 700,
+    "chunk_overlap": 100,
+    "label": "My Custom Run"
+  }
+}
+```
+
+**Response Example (`202 Accepted`)**:
+```json
+{
+  "run_id": "run_9876543210",
+  "status": "queued",
+  "poll": "/api/v1/evaluation/runs/run_9876543210"
+}
+```
+
+### `GET /api/v1/evaluation/runs/{run_id}`
+Returns the status, configuration, aggregate metrics, and per-question failure diagnoses of a run.
