@@ -49,3 +49,54 @@ SynaptiQ is built around a **dual-host, decoupled architecture**:
 ---
 
 ## 2. Frontend Layer (`frontend/`)
+
+The frontend is clean, modular, and fast:
+
+### Technologies Used
+- **React 19**: Modern UI rendering with React hooks.
+- **Vite**: Ultra-fast build tool and bundler.
+- **Three.js**: Interactive 3D synapse network background in the hero section.
+- **GSAP**: Smooth timeline-based animations for cards and transitions.
+- **Lucide Icons**: Crisp, lightweight vector iconography.
+
+### Major Sections & Pages
+1. **Landing Page (`frontend/src/landing/`)**:
+   - `Navbar`: Floating glassmorphism navbar with brand mark and section shortcuts.
+   - `Hero`: 3D interactive Three.js synapse scene, glowing brand logo, dynamic wordmark with cybernetic animated **"Q"**, and quick facts.
+   - `Problem`: Interactive Failure Autopsy that shows side-by-side comparisons of Retriever failures, Generator hallucinations, and pipeline breakdown.
+   - `Loop`: 4-step cyclical workflow (Ingest & Chunk $\to$ Test 3 Modes $\to$ Diagnose $\to$ Recommend & Verify).
+   - `Showcase`: Interactive dashboard preview with fixed height and zoom preview.
+   - `Features`: 8 key feature cards with generated futuristic artwork and GSAP tilt physics.
+   - `Diagnosis`: Visual matrix showing the 7 explainable outcomes.
+   - `Pipeline`: 12-step engineering roadmap detailing every stage from document loading to report export.
+   - `TechStack`: Interactive bouncy cards with authentic technology logos (Python, Streamlit, FastAPI, ChromaDB, etc.).
+   - `CallToAction & Footer`: Final launch actions and copyright details.
+
+2. **Dashboard (`frontend/src/dashboard/`)**:
+   - `Overview`: High-level summary of the latest baseline vs candidate runs, pass rates, and key metrics.
+   - `Documents`: File index, parsed sections, and chunk lists.
+   - `Evaluations`: Question-by-question view with exact evidence highlight drawer.
+   - `Analytics`: Interactive charts (metric distributions, rank vs recall, radar charts).
+   - `Reports`: Comparative before-and-after tables, export to CSV/JSON, and regression warnings.
+
+---
+
+## 3. Communication Bridge (`frontend/src/bridge/` & `backend/ui_bridge.py`)
+
+A key innovation of SynaptiQ is **host transparency**:
+- When running inside **Streamlit**, the frontend communicates with Python using the Streamlit Custom Component protocol (`window.parent.postMessage`).
+- When running inside **FastAPI**, the frontend sends standard HTTP POST/GET requests to `/api/v1/ui/*`.
+- Both transport pathways route directly into `backend/ui_bridge.py`, meaning the frontend never needs two different codebases.
+
+---
+
+## 4. Backend Core Modules (`backend/`)
+
+| Module | What It Does (Plain English) |
+|---|---|
+| **`document_loader.py`** | Reads PDF (PyMuPDF), DOCX (python-docx), and TXT files. Extracts clean text and remembers page numbers and character boundaries. |
+| **`chunking.py`** | Cuts long text into smaller pieces (chunks) without breaking sentences. Assigns a unique, stable ID to every chunk. |
+| **`embeddings.py`** | Converts text into mathematical vectors using Sentence Transformers (`all-MiniLM-L6-v2`). Falls back to deterministic hash vectors if offline. |
+| **`vector_store.py`** | Manages local ChromaDB vector storage. Stores chunk vectors and metadata, and finds top matching chunks using cosine similarity. |
+| **`retriever.py`** | Executes the search for relevant chunks given a user's question. |
+| **`generator.py`** | Produces answers. Runs in **offline extractive mode** by default (finding answers directly in context), or calls Anthropic Claude if configured. |
