@@ -9,3 +9,14 @@ fileWatcherType = "none"
 [browser]
 gatherUsageStats = false
 
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#f2f3f5"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#15171c"
+font = "sans serif"
