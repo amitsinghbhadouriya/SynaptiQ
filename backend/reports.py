@@ -41,3 +41,46 @@ def results_frame(results: list[QuestionResult], questions: list[EvalQuestion]) 
             "diagnosis": r.diagnosis_label,
             "diagnosis_code": r.diagnosis,
             "diagnosis_reason": r.diagnosis_reason,
+            "recommendation": r.recommendation["title"] if r.recommendation else "",
+            "latency_ms": e2e.latency_ms if e2e else (ret.latency_ms if ret else None),
+            "estimated_cost": e2e.estimated_cost if e2e else None,
+        })
+    return pd.DataFrame(rows)
+
+
+def runs_frame(runs: list[EvaluationRun]) -> pd.DataFrame:
+    rows = []
+    for run in runs:
+        h = run.summary.get("headline", {})
+        rows.append({
+            "run_id": run.run_id, "label": run.label, "created_at": run.created_at, "status": run.status,
+            "questions": run.summary.get("questions"), "pass_rate": run.summary.get("pass_rate"),
+            "hit_at_k": h.get("hit_at_k"), "context_recall": h.get("context_recall"),
+            "faithfulness": h.get("faithfulness"), "answer_correctness": h.get("answer_correctness"),
+            "latency_ms_avg": h.get("latency_ms_avg"), "config": run.configuration.short(),
+            "duration_ms": run.duration_ms,
+        })
+    return pd.DataFrame(rows)
+
+
+def export_run(run: EvaluationRun, results: list[QuestionResult], questions: list[EvalQuestion], fmt: str,
+               out_dir: Path | None = None) -> tuple[str, str, str]:
+    """Return (filename, mime, content) and optionally write the file to out_dir."""
+    fmt = fmt.lower()
+    if fmt == "csv":
+        content = results_frame(results, questions).to_csv(index=False)
+        filename, mime = f"synaptiq_{run.run_id}.csv", "text/csv"
+    elif fmt == "json":
+        payload: dict[str, Any] = {
+            "run": run.to_dict(),
+            "questions": [q.to_dict() for q in questions],
+            "results": to_jsonable(results),
+        }
+        content = json.dumps(payload, indent=2, ensure_ascii=False)
+        filename, mime = f"synaptiq_{run.run_id}.json", "application/json"
+    else:
+        raise ValueError("Supported export formats are csv and json.")
+    if out_dir is not None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / filename).write_text(content, encoding="utf-8")
+    return filename, mime, content
