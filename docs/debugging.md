@@ -48,3 +48,53 @@ rm -rf .venv
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
+## 2. "Another SynaptiQ process is already using ./storage"
+
+### Symptom:
+Starting Streamlit or FastAPI crashes with:
+`StorageInUse: Another SynaptiQ process is already using ./storage. Stop it or configure a separate DB_PATH and CHROMA_PATH.`
+
+### Cause:
+SQLite and ChromaDB do not support concurrent multi-process writes. SynaptiQ places a lock file at `./storage/synaptiq.lock` to prevent data corruption. This error occurs if another terminal is already running SynaptiQ, or if a previous instance was terminated abruptly.
+
+### Solution:
+1. **Check for running instances**: Look for other open terminal windows running `streamlit run app.py` or `uvicorn` and stop them with `Ctrl + C`.
+2. **If no process is running (stale lock file)**: Delete the lock file manually:
+   - On Windows: `Remove-Item .\storage\synaptiq.lock`
+   - On Mac/Linux: `rm storage/synaptiq.lock`
+3. **Running two instances simultaneously**: If you genuinely want to run both Streamlit and FastAPI simultaneously, point the second server to a different storage directory:
+   ```bash
+   export DB_PATH="./storage/api/synaptiq.db"
+   export CHROMA_PATH="./storage/api/chroma"
+   uvicorn backend.api:app --port 8000
+   ```
+
+---
+
+## 3. Port 8501 or 8000 Already in Use
+
+### Symptom:
+`OSError: [Errno 98] Address already in use` or Streamlit automatically jumps to `http://localhost:8502`.
+
+### Solution:
+- **To find and stop the process using port 8501 (Windows PowerShell)**:
+  ```powershell
+  Get-Process -Id (Get-NetTCPConnection -LocalPort 8501).OwningProcess | Stop-Process -Force
+  ```
+- **To find and stop the process using port 8501 (macOS / Linux)**:
+  ```bash
+  lsof -ti:8501 | xargs kill -9
+  ```
+- **Alternatively, specify a different port**:
+  ```bash
+  streamlit run app.py --server.port 8505
+  ```
+
+---
+
+## 4. First Run Stalls on "Loading Embedding Model..."
