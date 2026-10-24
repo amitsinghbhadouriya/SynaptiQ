@@ -36,3 +36,41 @@ def cosine(a: list[float], b: list[float]) -> float:
 
 
 class HashingEmbedder:
+    """Signed feature hashing of unigrams and bigrams with sublinear TF, L2-normalised."""
+
+    backend = "hashing"
+
+    def __init__(self, dim: int = 512, fallback_reason: str | None = None):
+        self.dim = dim
+        self.name = f"hashing-{dim}"
+        self.fallback_reason = fallback_reason
+
+    def _vector(self, text: str) -> list[float]:
+        tokens = content_tokens(text)
+        features = tokens + [f"{a}_{b}" for a, b in zip(tokens, tokens[1:])]
+        counts: dict[int, float] = {}
+        for feature in features:
+            digest = hashlib.blake2b(feature.encode(), digest_size=8).digest()
+            bucket = int.from_bytes(digest[:4], "little") % self.dim
+            sign = 1.0 if digest[4] & 1 else -1.0
+            weight = 0.5 if "_" in feature else 1.0
+            counts[bucket] = counts.get(bucket, 0.0) + sign * weight
+        vector = [0.0] * self.dim
+        for bucket, value in counts.items():
+            vector[bucket] = math.copysign(1 + math.log(abs(value)), value) if value else 0.0
+        norm = math.sqrt(sum(v * v for v in vector))
+        return [v / norm for v in vector] if norm else vector
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(t) for t in texts]
+
+
+class SentenceTransformerEmbedder:
+    backend = "sentence-transformers"
+    fallback_reason = None
+
+    def __init__(self, model_name: str):
+        from sentence_transformers import SentenceTransformer  # heavy import, done lazily
+
+        self.name = model_name
+        self._model = SentenceTransformer(model_name, device="cpu")
