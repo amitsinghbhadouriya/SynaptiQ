@@ -9,3 +9,14 @@ venv/
 # Secrets and local data
 .env
 storage/
+reports/*
+!reports/.gitkeep
+
+# Frontend (dist/ is committed so the app runs without Node)
+frontend/node_modules/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
