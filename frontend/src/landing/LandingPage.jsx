@@ -22,3 +22,27 @@ export default function LandingPage({ send }) {
     document.documentElement.removeAttribute('data-theme');
     document.title = 'SynaptiQ — RAG evaluation & root-cause intelligence';
     // Fonts and lazy sections change layout after mount; re-measure scroll triggers once settled.
+    const refresh = () => ScrollTrigger.refresh();
+    const timer = window.setTimeout(refresh, 600);
+    document.fonts?.ready.then(refresh);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="landing">
+      <TargetCursor targetSelector=".cursor-target" spinDuration={2} hideDefaultCursor parallaxOn cursorColor="#ffffff" />
+      <Navbar onLaunch={launch} />
+      <main>
+        <Hero onLaunch={launch} />
+        <Problem />
+        <Loop />
+        <Showcase onLaunch={launch} />
+        <Features />
+        <Diagnosis />
+        <Pipeline />
+        <TechStack />
+        <CallToAction onLaunch={launch} />
+      </main>
+    </div>
+  );
+}
