@@ -131,3 +131,70 @@ def mode_trend_figure(runs: list[EvaluationRun]) -> dict[str, Any]:
         margin=dict(l=44, r=16, t=32, b=36), hovermode="x unified", xaxis=_category_axis(),
         yaxis=dict(gridcolor=GRID, zeroline=False, range=[0, 1.05], tickformat=".0%", fixedrange=True,
                    tickfont=dict(size=11)),
+    ))
+    return _to_json(fig)
+
+
+def runs_bar_figure(runs: list[EvaluationRun], highlight_run_id: str | None) -> dict[str, Any]:
+    """Pass rate per run; the selected run is emphasised, the rest are muted."""
+    chronological = list(reversed(runs))[-8:]
+    labels = [_run_label(r, i + 1) for i, r in enumerate(chronological)]
+    values = [r.summary.get("pass_rate") or 0 for r in chronological]
+    colors = [SERIES[0] if r.run_id == highlight_run_id else MUTED_BAR for r in chronological]
+    fig = go.Figure(go.Bar(
+        x=labels, y=values, marker=dict(color=colors, cornerradius=4), width=0.62,
+        hovertext=[f"<b>{v:.0%} pass</b><br>{r.label or r.configuration.short()}" for v, r in zip(values, chronological)],
+        hoverinfo="text",
+    ))
+    fig.update_layout(**_base_layout(
+        margin=dict(l=36, r=8, t=8, b=28), bargap=0.3, xaxis=_category_axis(),
+        yaxis=dict(gridcolor=GRID, zeroline=False, range=[0, 1], tickformat=".0%", fixedrange=True, nticks=4,
+                   tickfont=dict(size=10)),
+    ))
+    return _to_json(fig)
+
+
+def failure_donut(summary: dict[str, Any], labels: dict[str, str]) -> dict[str, Any] | None:
+    diagnoses = {k: v for k, v in summary.get("diagnoses", {}).items() if k != "PASS" and v}
+    if not diagnoses:
+        return None
+    order = [k for k in DIAGNOSIS_COLORS if k in diagnoses]
+    total = sum(diagnoses.values())
+    fig = go.Figure(go.Pie(
+        labels=[labels.get(k, k) for k in order], values=[diagnoses[k] for k in order],
+        marker=dict(colors=[DIAGNOSIS_COLORS[k] for k in order], line=dict(color="#ffffff", width=2)),
+        hole=0.72, sort=False, direction="clockwise", textinfo="none",
+        hovertemplate="%{label}: %{value} (%{percent})<extra></extra>",
+    ))
+    fig.update_layout(**_base_layout(
+        margin=dict(l=4, r=4, t=4, b=4),
+        annotations=[dict(text=f"<b style='font-size:22px'>{total}</b><br>failing", showarrow=False,
+                          font=dict(size=11, color=INK_MUTED), x=0.5, y=0.5)],
+    ))
+    return _to_json(fig)
+
+
+def comparison_figure(comparison: dict[str, Any]) -> dict[str, Any]:
+    rows = [r for r in comparison["metrics"] if r["mode"] in ("overall", "retriever", "generator", "end_to_end")
+            and r["key"] not in ("latency_ms_avg", "cost_total") and (r["baseline"] is not None or r["candidate"] is not None)]
+    rows = list(reversed(rows))
+    names = [r["metric"] for r in rows]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=names, x=[r["baseline"] for r in rows], name="Baseline", orientation="h",
+        marker=dict(color=BASELINE, cornerradius=4), hovertemplate="Baseline: %{x:.2f}<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        y=names, x=[r["candidate"] for r in rows], name="Candidate", orientation="h",
+        marker=dict(color=SERIES[0], cornerradius=4), hovertemplate="Candidate: %{x:.2f}<extra></extra>",
+    ))
+    fig.update_layout(**_base_layout(
+        barmode="group", bargap=0.35, bargroupgap=0.12, showlegend=True,
+        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11), traceorder="reversed"),
+        margin=dict(l=210, r=16, t=30, b=30),
+        xaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False, range=[0, 1.05], fixedrange=True,
+                   tickfont=dict(size=11)),
+        yaxis=dict(showgrid=False, zeroline=False, fixedrange=True, tickfont=dict(size=11)),
+        height=max(260, 46 * len(rows) + 60),
+    ))
+    return _to_json(fig)
