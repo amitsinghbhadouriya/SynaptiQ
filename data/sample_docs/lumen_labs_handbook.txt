@@ -1,0 +1,25 @@
+# Lumen Labs Employee Handbook
+
+This handbook describes how Lumen Labs works day to day. Lumen Labs is a fictional research software company used here as safe sample content. The policies apply to all employees unless a local employment contract says otherwise. Questions about any policy can be sent to the People Operations team.
+
+# Working Hours and Location
+
+Core collaboration hours run from 10:00 to 15:00 in each team's home time zone. Outside core hours, employees plan their own schedules with their manager. Teams publish their working agreements on the internal wiki so colleagues know when to expect replies.
+
+Employees may work remotely from their home country for as long as they like. Working from another country is limited to a maximum of 30 working days per calendar year. Any stay abroad longer than 10 consecutive working days must be approved in advance by the employee's manager and the People Operations team. Tax and immigration rules differ by country, so requests should be submitted at least three weeks before travel.
+
+# Probation and Reviews
+
+New employees complete a probation period of 90 days. During probation, the manager holds a short check-in every two weeks. Performance reviews take place twice a year, in March and September. Each review combines a self-assessment, peer feedback and a conversation with the manager.
+
+# Leave and Time Off
+
+Full-time employees receive 24 days of paid annual leave per calendar year. Part-time employees receive annual leave in proportion to their contracted hours. Up to 5 unused days can be carried over into the first quarter of the next year; remaining days expire on 31 March.
+
+Primary caregivers are offered 18 weeks of fully paid parental leave. Secondary caregivers are offered 6 weeks of fully paid parental leave, which can be taken in up to three separate blocks within the first year. Sick leave does not count against annual leave. For absences longer than three consecutive days, a medical certificate is required.
+
+# Equipment and Home Office
+
+Every new engineer receives a hardware budget of 2,500 euros for a laptop, monitor and accessories. Other roles receive a budget of 1,500 euros. The hardware budget renews every three years, and older equipment may be kept after the renewal. A one-time home office allowance of 400 euros covers a desk, chair or lighting.
+
+If a company laptop is lost or stolen, the employee must report it to the IT Service Desk within 24 hours so the device can be locked remotely. A police report is required for stolen devices. Lost equipment is replaced from the hardware budget only once per renewal period.
