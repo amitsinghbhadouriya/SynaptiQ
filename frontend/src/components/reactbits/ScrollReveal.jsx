@@ -226,3 +226,80 @@ const ScrollReveal = ({
                 scrub
               }
             }
+          );
+        }
+        gsap.to(state, {
+          p: 1,
+          ease: 'none',
+          onUpdate: render,
+          scrollTrigger: {
+            trigger: el,
+            scroller,
+            start: () => `top bottom-=${0.2 * Math.min(el.offsetHeight, viewportHeight())}`,
+            end: clampToScroll(wordAnimationEnd),
+            scrub
+          }
+        });
+      }
+
+      const resizeObserver =
+        splitBy === 'lines' && typeof ResizeObserver !== 'undefined'
+          ? new ResizeObserver(() => {
+              measure();
+              last.fill(-1);
+              render();
+            })
+          : null;
+      resizeObserver?.observe(textEl);
+
+      return () => {
+        resizeObserver?.disconnect();
+        pieces.forEach(piece => {
+          piece.style.opacity = '';
+          piece.style.transform = '';
+          piece.style.transformOrigin = '';
+          piece.style.filter = '';
+          piece.style.color = '';
+          piece.style.willChange = '';
+        });
+        wrappers.forEach(wrapper => {
+          wrapper.style.clipPath = '';
+        });
+      };
+    });
+
+    return () => mm.revert();
+  }, [
+    mounted,
+    scrollContainerRef,
+    text,
+    splitBy,
+    effect,
+    mode,
+    duration,
+    highlightColor,
+    enableBlur,
+    baseOpacity,
+    baseRotation,
+    blurStrength,
+    baseOffset,
+    stagger,
+    smoothing,
+    rotationEnd,
+    wordAnimationEnd
+  ]);
+
+  return (
+    <h2 ref={containerRef} className={`scroll-reveal ${containerClassName}`} aria-label={text ?? undefined}>
+      <span
+        ref={textRef}
+        className={`scroll-reveal-text ${textClassName}`}
+        aria-hidden={text === null ? undefined : true}
+      >
+        {splitText ?? children}
+      </span>
+    </h2>
+  );
+};
+
+export default ScrollReveal;
