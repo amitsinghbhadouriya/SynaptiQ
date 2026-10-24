@@ -50,3 +50,55 @@ CREATE TABLE documents (
     created_at    TEXT NOT NULL,          -- ISO 8601 UTC timestamp
     status        TEXT NOT NULL,          -- "processed" or "error"
     text          TEXT NOT NULL,          -- Full extracted plain text
+    metadata_json TEXT NOT NULL DEFAULT '{}' -- Page bounds & section offsets
+);
+```
+
+### Table 2: `chunks`
+Stores text chunks extracted from documents.
+```sql
+CREATE TABLE chunks (
+    chunk_id      TEXT PRIMARY KEY,       -- e.g. "chk_9f8e7d6c5b"
+    document_id   TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
+    index_key     TEXT NOT NULL,          -- Hash of chunk settings
+    chunk_index   INTEGER NOT NULL,       -- 0, 1, 2...
+    text          TEXT NOT NULL,          -- Chunk text content
+    start_char    INTEGER NOT NULL,       -- Start index in document.text
+    end_char      INTEGER NOT NULL,       -- End index in document.text
+    page_number   INTEGER,                -- Page number where chunk starts
+    metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX idx_chunks_doc_key ON chunks(document_id, index_key);
+```
+
+### Table 3: `evaluation_questions`
+Stores benchmark questions with verbatim evidence spans.
+```sql
+CREATE TABLE evaluation_questions (
+    question_id          TEXT PRIMARY KEY,
+    document_id          TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
+    question             TEXT NOT NULL,
+    reference_answer     TEXT NOT NULL,
+    supporting_chunk_ids TEXT NOT NULL DEFAULT '[]', -- JSON array of chunk IDs
+    evidence_json        TEXT NOT NULL DEFAULT '[]', -- Exact char start/end spans
+    question_type        TEXT NOT NULL,              -- factual, numerical, multi_hop, unanswerable
+    review_status        TEXT NOT NULL,              -- pending, approved, rejected
+    source               TEXT NOT NULL,              -- synthetic-offline or claude
+    created_at           TEXT NOT NULL
+);
+```
+
+### Table 4: `evaluation_runs`
+Stores the configuration and high-level summary of a test execution.
+```sql
+CREATE TABLE evaluation_runs (
+    run_id             TEXT PRIMARY KEY,  -- e.g. "run_1234567890"
+    document_id        TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
+    dataset_id         TEXT NOT NULL,     -- e.g. "ds_doc_a1b2c3d4e5"
+    created_at         TEXT NOT NULL,
+    configuration_json TEXT NOT NULL,     -- Full RunConfig parameters
+    modes_json         TEXT NOT NULL,     -- ["retriever", "generator", "end_to_end"]
+    status             TEXT NOT NULL,     -- queued, running, completed, failed
+    duration_ms        INTEGER,
+    summary_json       TEXT NOT NULL DEFAULT '{}', -- Pass rate, mean latency
+    label              TEXT NOT NULL DEFAULT '',   -- "Baseline" or "Candidate: top-k=2"
