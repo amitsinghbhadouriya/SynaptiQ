@@ -72,3 +72,40 @@ This document walks you step-by-step through the **12-stage engineering pipeline
 ### Stage 8: Generator Response (`backend/generator.py`)
 - Produces answers under two different modes:
   1. **Offline Extractive Mode (Default)**: Uses transparent sentence-matching heuristics to extract the most relevant factual answer directly from the supplied context. Completely offline and instant.
+  2. **Claude API Mode (Optional)**: Calls Anthropic Claude (`claude-opus-5-5` or configured model) with a grounded prompt that instructs the model to rely only on the retrieved context.
+- **Abstention Logic**: If the maximum similarity score between the question and context is below the `abstain_threshold`, the generator gracefully declines to answer to avoid hallucinations.
+
+---
+
+### Stage 9: Multi-Metric Scoring (`backend/metrics.py` & `ragas_adapter.py`)
+Scores the output across multiple transparent metrics:
+- **Hit@k**: `1.0` if all evidence spans are at least 50% covered by the top-$k$ chunks.
+- **Context Recall**: The percentage of reference evidence characters present in the retrieved chunks.
+- **Context Precision**: Rank-aware score evaluating whether evidence chunks appear near the top of the search results.
+- **First Relevant Rank (MRR)**: The exact position (#1, #2, #3...) where the first supporting chunk appeared.
+- **Answer Correctness**: Blends token recall (0.65) and semantic similarity (0.35). Capped at 0.4 if a required reference number is missing.
+- **Faithfulness**: Share of answer sentences directly backed by the retrieved context.
+- **Abstention Correctness**: Verifies if unanswerable questions were correctly declined.
+
+---
+
+### Stage 10: Root-Cause Diagnosis (`backend/root_cause.py`)
+- Evaluates the three independent test results (`retriever`, `generator`, `end_to_end`).
+- Uses deterministic diagnostic rules to assign one of the **7 Explainable Outcomes** (e.g. *Retrieval Failure*, *Generation Failure*, *Pipeline Interaction*, or *Pass*).
+
+---
+
+### Stage 11: Targeted Recommendations (`backend/recommendations.py`)
+- Translates failure evidence into a single, concrete setting adjustment:
+  - Suggests higher `top_k` if evidence was ranked just outside the window.
+  - Suggests larger `chunk_size` or `chunk_overlap` if evidence was cut across chunk seams.
+  - Suggests a stronger embedding model if evidence never appeared in search.
+  - Suggests strict prompts or higher abstention thresholds if hallucinating.
+
+---
+
+### Stage 12: Experiment Comparison & Reports (`backend/experiments.py` & `reports.py`)
+- Executes the candidate configuration on the exact same question set.
+- Calculates the before-and-after delta (e.g., pass rate changed from 71% to 86%).
+- Identifies newly fixed questions and flags any regressions.
+- Generates downloadable CSV/JSON exports and interactive Plotly visualization charts.
