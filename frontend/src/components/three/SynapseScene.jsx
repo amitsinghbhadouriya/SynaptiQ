@@ -146,3 +146,77 @@ export default function SynapseScene({
     });
     const linkGeometry = new THREE.BufferGeometry();
     linkGeometry.setAttribute('position', new THREE.BufferAttribute(linkPositions, 3));
+    const linkMaterial = new THREE.LineBasicMaterial({
+      color: linkColor,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    world.add(new THREE.LineSegments(linkGeometry, linkMaterial));
+
+    // ---- pulses travelling along links
+    const pulseCount = Math.min(70, edges.length);
+    const pulses = Array.from({ length: pulseCount }, () => ({
+      edge: Math.floor(rand() * edges.length),
+      t: rand(),
+      speed: 0.25 + rand() * 0.55,
+      forward: rand() > 0.5
+    }));
+    const pulsePositions = new Float32Array(pulseCount * 3);
+    const pulseSizes = new Float32Array(pulseCount).fill(4.2);
+    const pulseGlow = new Float32Array(pulseCount).fill(1);
+    const pulseGeometry = new THREE.BufferGeometry();
+    pulseGeometry.setAttribute('position', new THREE.BufferAttribute(pulsePositions, 3));
+    pulseGeometry.setAttribute('aSize', new THREE.BufferAttribute(pulseSizes, 1));
+    pulseGeometry.setAttribute('aGlow', new THREE.BufferAttribute(pulseGlow, 1));
+    const pulseMaterial = pointsMaterial(pulseColor, 1);
+    world.add(new THREE.Points(pulseGeometry, pulseMaterial));
+
+    // ---- orbit rings for depth
+    const rings = [];
+    [
+      { r: radius * 1.42, tilt: [1.15, 0.2, 0], opacity: 0.12 },
+      { r: radius * 1.7, tilt: [1.4, -0.5, 0.3], opacity: 0.07 }
+    ].forEach(spec => {
+      const curve = new THREE.EllipseCurve(0, 0, spec.r, spec.r, 0, Math.PI * 2);
+      const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(160));
+      const material = new THREE.LineBasicMaterial({ color: linkColor, transparent: true, opacity: spec.opacity });
+      const ring = new THREE.LineLoop(geometry, material);
+      ring.rotation.set(...spec.tilt);
+      world.add(ring);
+      rings.push(ring);
+    });
+
+    // ---- interaction state
+    const pointer = { x: 0, y: 0 };
+    const look = { x: 0, y: 0 };
+    let scrollFade = 0;
+    let visible = true;
+    let raf = 0;
+    let last = performance.now();
+
+    const resize = () => {
+      const width = Math.max(1, host.clientWidth);
+      const height = Math.max(1, host.clientHeight);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.position.z = width < 700 ? 19 : 15;
+      camera.updateProjectionMatrix();
+    };
+
+    const onPointer = event => {
+      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = (event.clientY / window.innerHeight) * 2 - 1;
+    };
+    const onScroll = () => {
+      const rect = host.getBoundingClientRect();
+      scrollFade = Math.min(1, Math.max(0, -rect.top / Math.max(1, rect.height)));
+    };
+
+    const tick = now => {
+      raf = 0;
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const motion = reduced ? 0.15 : 1;
+
