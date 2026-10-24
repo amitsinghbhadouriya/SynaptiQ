@@ -208,3 +208,74 @@ def handle_event(ws: Workspace, event: dict[str, Any]) -> dict[str, Any]:
                 return notice("error", " ".join(errors))
             parts = []
             if created:
+                parts.append(f"Indexed {', '.join(created)}.")
+            if reused:
+                parts.append(f"Already indexed: {', '.join(reused)}.")
+            if errors:
+                parts.append("Failed: " + " ".join(errors))
+            return notice("warning" if errors else "success", " ".join(parts))
+
+        if kind == "delete_document":
+            ws.delete_document(event["document_id"])
+            return notice("success", "Document, chunks, test questions and runs deleted.")
+
+        if kind == "generate_tests":
+            questions = ws.generate_test_set(event["document_id"], int(event.get("count", 10)), event.get("types"))
+            return notice("success", f"Generated {len(questions)} candidate questions — review them before trusting scores.")
+
+        if kind == "review":
+            ws.review_question(event["question_id"], event.get("status"),
+                               question=event.get("question"), reference_answer=event.get("reference_answer"))
+            return notice("success", "Question updated.")
+
+        if kind == "run_eval":
+            config = ws.default_config(**(event.get("config") or {}))
+            run = ws.run_evaluation(event["document_id"], config, event.get("modes"), label=event.get("label", ""))
+            out["selected_run_id"] = run.run_id
+            if run.status != "completed":
+                return notice("error", f"Run failed: {run.error}")
+            s = run.summary
+            return notice("success", f"Run finished: {s['passed']}/{s['questions']} questions passed "
+                                     f"({s['pass_rate']:.0%}) in {run.duration_ms / 1000:.1f}s.")
+
+        if kind == "run_candidate":
+            run = ws.run_recommendation(event["run_id"])
+            out["selected_run_id"] = run.run_id
+            if run.status != "completed":
+                return notice("error", f"Candidate run failed: {run.error}")
+            return notice("success", f"Candidate run finished: {run.summary['pass_rate']:.0%} pass rate. "
+                                     "Compare it with the baseline under Reports.")
+
+        if kind == "select_run":
+            out["selected_run_id"] = event.get("run_id")
+            return out
+
+        if kind == "compare":
+            comparison = ws.compare(event["baseline_run_id"], event["candidate_run_id"], strict=False)
+            out["comparison"] = comparison
+            out["comparison_chart"] = charts.comparison_figure(comparison)
+            return notice("info", "Comparison ready." + (" " + comparison["warnings"][0] if comparison["warnings"] else ""))
+
+        if kind == "export":
+            filename, mime, content = ws.export(event["run_id"], event.get("format", "csv"))
+            out["download"] = {"filename": filename, "mime": mime, "content": content, "nonce": nonce}
+            return notice("success", f"Exported {filename} (also saved under reports/).")
+
+        if kind == "load_demo":
+            info = ws.load_demo()
+            out["selected_run_id"] = info["candidate_run_id"] or info["baseline_run_id"]
+            return notice("success", "Demo workspace ready: a baseline run and the recommended candidate were "
+                                     "evaluated on the sample handbook.")
+
+        if kind == "navigate":
+            out["navigate"] = event.get("page")
+            return out
+
+        return notice("error", f"Unknown action '{kind}'.")
+    except (NotFound, ValueError, IncompatibleRuns) as exc:
+        return notice("error", str(exc))
+    except KeyError as exc:
+        return notice("error", f"Missing field {exc} in request.")
+    except Exception as exc:  # keep the UI alive; details go to the log, not the screen
+        log.exception("UI action %s failed", kind)
+        return notice("error", f"Something went wrong ({type(exc).__name__}). See the server log for details.")
