@@ -412,3 +412,210 @@ const TechText = ({
 
     const drawSpecks = (s, a, accent) => {
       const w = frame.x2 - frame.x1;
+      const h = frame.y2 - frame.y1;
+      if (w < 2 || h < 2) return;
+      const perimeter = 2 * (w + h);
+      const seed = frame.index + 1;
+      const grid = 3;
+      ctx.fillStyle = accent;
+      ctx.strokeStyle = accent;
+
+      for (let k = 0; k < s.specks; k++) {
+        const period = 0.5 + noise(seed, k, 11) * 1.2;
+        const t = pulse / period + noise(seed, k, 17);
+        const cycle = Math.floor(t);
+        const life = t - cycle;
+        if (life > 0.7) continue;
+        const [px, py, nx, ny] = perimeterPoint(noise(seed, k, cycle) * perimeter, w, h);
+        const pick = noise(seed, k, cycle, 2);
+        const size = pick < 0.46 ? 2 : pick < 0.7 ? 3 : pick < 0.84 ? 5 : pick < 0.94 ? 8 : 11;
+        const large = size >= 8;
+        const out = (large ? 9 : 4) + Math.floor(noise(seed, k, cycle, 1) * 5) * grid;
+        const x = frame.x1 + Math.round((px + nx * out - frame.x1) / grid) * grid;
+        const y = frame.y1 + Math.round((py + ny * out - frame.y1) / grid) * grid;
+        const tone = noise(seed, k, cycle, 3);
+        const blink = life < 0.06 || (life > 0.32 && life < 0.36) ? 0.35 : 1;
+        const alpha = a * (large ? 0.3 + 0.4 * tone : 0.3 + 0.6 * tone) * blink;
+        const left = Math.round(x - size / 2);
+        const top = Math.round(y - size / 2);
+        ctx.globalAlpha = alpha;
+        if (tone < 0.26 || (large && tone < 0.78)) {
+          ctx.strokeRect(left + 0.5, top + 0.5, size, size);
+          if (large && tone > 0.5) ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+        } else {
+          ctx.fillRect(left, top, size, size);
+        }
+      }
+
+      for (let j = 0; j < 2; j++) {
+        const head = (pulse * 0.42 * s.speed + j * 0.5) * perimeter;
+        for (let i = 0; i < 4; i++) {
+          const [x, y] = perimeterPoint(head - i * 6, w, h);
+          const size = i === 0 ? 3 : 2;
+          ctx.globalAlpha = a * [0.95, 0.55, 0.32, 0.16][i];
+          ctx.fillRect(Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const drawFrame = (s, accent) => {
+      const glyph = glyphs[frame.index];
+      if (!glyph || frame.alpha < 0.01) return;
+      const a = frame.alpha;
+      const x1 = crisp(frame.x1);
+      const y1 = crisp(frame.y1);
+      const x2 = crisp(frame.x2);
+      const y2 = crisp(frame.y2);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = accent;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1;
+
+      const moved = Math.hypot(glyph.offset.x, glyph.offset.y);
+      if (moved > 1) {
+        const hx = (glyph.box.x1 + glyph.box.x2) / 2;
+        const hy = (glyph.box.y1 + glyph.box.y2) / 2;
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(hx + glyph.offset.x, hy + glyph.offset.y);
+        ctx.setLineDash([3, 4]);
+        ctx.globalAlpha = 0.45 * a;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.rect(Math.round(hx) - 2, Math.round(hy) - 2, 4, 4);
+        ctx.globalAlpha = 0.7 * a;
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.rect(x1, y1, x2 - x1, y2 - y1);
+      ctx.globalAlpha = 0.5 * a;
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (const [cx, cy] of [
+        [x1, y1],
+        [x2, y1],
+        [x2, y2],
+        [x1, y2]
+      ]) {
+        ctx.rect(Math.round(cx) - 2, Math.round(cy) - 2, 5, 5);
+      }
+      ctx.globalAlpha = 0.95 * a;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (s.specks > 0) drawSpecks(s, a, accent);
+
+      if (!s.labels) return;
+      ctx.font = LABEL_FONT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.62 * a;
+      const label =
+        moved > 1
+          ? `${signed(Math.round(glyph.offset.x))}, ${signed(Math.round(-glyph.offset.y))}`
+          : `${glyph.char}  ${Math.round(glyph.box.x2 - glyph.box.x1)} × ${Math.round(glyph.box.y2 - glyph.box.y1)}`;
+      ctx.fillText(label, Math.round(frame.x1), Math.round(frame.y1) - 7);
+      ctx.globalAlpha = 1;
+    };
+
+    const drawLines = (s, view, accent, alpha, growth) => {
+      const pad = Math.max(12, view.size * 0.12);
+      const x1 = Math.round(view.left - pad);
+      const x2 = Math.round(view.right + pad);
+      const room = width - x2 > x1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.strokeStyle = accent;
+      ctx.fillStyle = accent;
+      ctx.lineWidth = 1;
+      ctx.font = LABEL_FONT;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = room ? 'left' : 'right';
+      view.lines.forEach((line, k) => {
+        const grow = growth(k);
+        if (grow <= 0.001) return;
+        const y = crisp(line.y);
+        const end = x1 + (x2 - x1) * grow;
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(end, y);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.9;
+        ctx.fillRect(x1 - 1, Math.round(line.y) - 1, 3, 3);
+        ctx.fillRect(Math.round(end) - 1, Math.round(line.y) - 1, 3, 3);
+        if (s.labels) {
+          ctx.globalAlpha = alpha * 0.62 * smoothstep(0.7, 1, grow);
+          ctx.fillText(line.label, room ? x2 + 8 : x1 - 8, Math.round(line.y));
+        }
+      });
+      ctx.textAlign = 'left';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+    };
+
+    const ensureCells = (glyph, view) => {
+      if (glyph.cells) return glyph.cells;
+      const art = glyph.fill;
+      const size = Math.max(3, Math.round(view.size / 26));
+      const w = art.image.width;
+      const h = art.image.height;
+      const source = art.image.getContext('2d');
+      const cells = [];
+      glyph.cells = cells;
+      glyph.assembled = 0;
+      if (!source || w < 2 || h < 2) return cells;
+      const data = source.getImageData(0, 0, w, h).data;
+      const gx = Math.floor(art.left / size) * size;
+      const gy = Math.floor(art.top / size) * size;
+      const cols = Math.ceil((art.left + w / dpr - gx) / size) + 1;
+      const rows = Math.ceil((art.top + h / dpr - gy) / size) + 1;
+      const hit = new Uint8Array(cols * rows);
+      for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+          if (data[(py * w + px) * 4 + 3] < 24) continue;
+          const cx = Math.floor((art.left + px / dpr - gx) / size);
+          const cy = Math.floor((art.top + py / dpr - gy) / size);
+          hit[cy * cols + cx] = 1;
+        }
+      }
+      const center = (glyph.box.x1 + glyph.box.x2) / 2;
+      const along = clamp01((center - view.left) / Math.max(1, view.right - view.left));
+      for (let k = 0; k < hit.length; k++) {
+        if (!hit[k]) continue;
+        const angle = noise(glyph.index, k, 1) * Math.PI * 2;
+        const distance = view.size * (0.25 + 0.6 * noise(glyph.index, k, 2));
+        const start = 0.03 + 0.36 * along + 0.12 * noise(glyph.index, k, 3);
+        const land = start + 0.3 + 0.14 * noise(glyph.index, k, 4);
+        cells.push({
+          x: gx + (k % cols) * size,
+          y: gy + Math.floor(k / cols) * size,
+          size,
+          dx: Math.cos(angle) * distance,
+          dy: Math.sin(angle) * distance * 0.7,
+          start,
+          land
+        });
+        glyph.assembled = Math.max(glyph.assembled, land);
+      }
+      return cells;
+    };
+
+    const cellRect = (x, y, size) => {
+      const left = Math.round(x * dpr);
+      const top = Math.round(y * dpr);
+      return [left, top, Math.round((x + size) * dpr) - left, Math.round((y + size) * dpr) - top];
+    };
+
+    const drawAssembling = (glyph, progress, accent) => {
+      const cells = glyph.cells || [];
+      ctx.save();
+      ctx.beginPath();
+      let landed = 0;
+      for (const cell of cells) {
+        if (progress < cell.land) continue;
+        const [x, y, w, h] = cellRect(cell.x, cell.y, cell.size);
