@@ -100,3 +100,54 @@ A key innovation of SynaptiQ is **host transparency**:
 | **`vector_store.py`** | Manages local ChromaDB vector storage. Stores chunk vectors and metadata, and finds top matching chunks using cosine similarity. |
 | **`retriever.py`** | Executes the search for relevant chunks given a user's question. |
 | **`generator.py`** | Produces answers. Runs in **offline extractive mode** by default (finding answers directly in context), or calls Anthropic Claude if configured. |
+| **`metrics.py`** | Scores answers: Hit@k, Context Recall, Context Precision, Answer Correctness, Faithfulness, and Abstention. |
+| **`ragas_adapter.py`** | Connects to the Ragas evaluation library to calculate non-LLM sentence-level string similarity and context recall. |
+| **`evaluator.py`** | Runs the 3 independent evaluation modes: Retriever-only, Generator-only, and End-to-end. |
+| **`root_cause.py`** | Analyzes the results of the 3 modes to determine exactly why a question failed (Retrieval failure, Generation failure, etc.). |
+| **`recommendations.py`** | Looks at failure evidence and generates exactly one targeted setting adjustment to test. |
+| **`experiments.py`** | Compares a Baseline run with a Candidate run to detect improvements and regressions. |
+| **`storage.py`** | SQLite relational database manager for documents, questions, runs, and results. |
+| **`process_lock.py`** | Prevents data corruption by ensuring only one process accesses the database files at a time. |
+
+---
+
+## 5. End-to-End Data Flow
+
+Here is how data flows from document upload to final report:
+
+```
+[User Uploads PDF]
+       |
+       v
+[document_loader.py] ------> Extracts raw text, preserves page numbers
+       |
+       v
+[chunking.py] -------------> Creates overlapping sentence chunks (e.g., 700 chars / 100 overlap)
+       |
+       v
+[embeddings.py] -----------> Converts each chunk to a dense 384-dimensional vector
+       |
+       v
+[vector_store.py] ---------> Stores chunks & vectors into ChromaDB
+       |
+       v
+[synthetic_qa.py] ---------> Generates verified test questions with exact evidence quotes
+       |
+       v
+[evaluator.py] ------------> Tests all 3 modes (Retriever, Generator, End-to-End)
+       |
+       v
+[metrics.py] --------------> Computes transparent scores (Hit@k, Recall, Faithfulness, Correctness)
+       |
+       v
+[root_cause.py] -----------> Diagnoses failures into 1 of 7 clear, explainable outcomes
+       |
+       v
+[recommendations.py] ------> Suggests 1 parameter fix (e.g., "Increase top-k from 1 to 2")
+       |
+       v
+[experiments.py] ----------> Runs candidate test and compares against baseline
+       |
+       v
+[Dashboard UI] ------------> Displays interactive metrics, charts, and downloadable reports
+```
