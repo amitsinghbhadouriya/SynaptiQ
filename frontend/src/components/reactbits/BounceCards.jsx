@@ -236,3 +236,83 @@ export default function BounceCards({
       wake();
       clickRef.current?.(index);
     };
+    const onFocus = event => {
+      const index = cardRefs.current.indexOf(event.target);
+      if (index >= 0) {
+        state.hovered = index;
+        wake();
+      }
+    };
+    const onKey = event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const index = cardRefs.current.indexOf(event.target);
+      if (index < 0 || !settingsRef.current.clickable) return;
+      event.preventDefault();
+      if (bodies[index] && !reduce) bodies[index].vs -= 2.2;
+      wake();
+      clickRef.current?.(index);
+    };
+
+    root.addEventListener('pointermove', onMove);
+    root.addEventListener('pointerdown', onMove);
+    root.addEventListener('pointerleave', onLeave);
+    root.addEventListener('click', onClick);
+    root.addEventListener('focusin', onFocus);
+    root.addEventListener('focusout', onLeave);
+    root.addEventListener('keydown', onKey);
+    wake();
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      wakeRef.current = null;
+      root.removeEventListener('pointermove', onMove);
+      root.removeEventListener('pointerdown', onMove);
+      root.removeEventListener('pointerleave', onLeave);
+      root.removeEventListener('click', onClick);
+      root.removeEventListener('focusin', onFocus);
+      root.removeEventListener('focusout', onLeave);
+      root.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  useEffect(() => {
+    wakeRef.current?.();
+  });
+
+  return (
+    <div
+      ref={rootRef}
+      className={`bounce-cards${className ? ` ${className}` : ''}`}
+      style={{
+        width: containerWidth,
+        height: containerHeight,
+        '--bounce-cards-size': `${settings.cardSize}px`,
+        '--bounce-cards-border': `${Math.max(0, borderWidth)}px`,
+        '--bounce-cards-border-color': borderColor,
+        '--bounce-cards-radius': `${Math.max(0, radius)}px`,
+        '--bounce-cards-shadow': shadow
+          ? '0 1px 2px rgba(0, 0, 0, 0.12), 0 10px 28px -6px rgba(0, 0, 0, 0.32)'
+          : 'none',
+        '--bounce-cards-shadow-active': shadow
+          ? '0 2px 4px rgba(0, 0, 0, 0.14), 0 22px 44px -10px rgba(0, 0, 0, 0.42)'
+          : 'none',
+        ...style
+      }}
+    >
+      {cards.map((card, i) => (
+        <div
+          key={i}
+          ref={el => {
+            cardRefs.current[i] = el;
+          }}
+          className={`bounce-cards__card${settings.clickable ? ' bounce-cards__card--clickable' : ''}`}
+          style={{ zIndex: i + 1 }}
+          {...(settings.clickable ? { role: 'button', tabIndex: 0, 'aria-label': card.alt || `Card ${i + 1}` } : null)}
+        >
+          {card.src && <img src={card.src} alt={card.alt} draggable={false} />}
+        </div>
+      ))}
+    </div>
+  );
+}
