@@ -42,3 +42,48 @@ def _env_float(name: str, default: float | None) -> float | None:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
         return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve(path_value: str) -> Path:
+    path = Path(path_value)
+    return path if path.is_absolute() else (PROJECT_ROOT / path).resolve()
+
+
+@dataclass(frozen=True)
+class Settings:
+    # LLM provider: "offline" (extractive, no key needed) or "anthropic" (Claude via the official SDK)
+    llm_provider: str = "offline"
+    llm_model: str = "claude-opus-5-5"
+    llm_effort: str = "low"
+    llm_timeout_s: float = 60.0
+    llm_refusal_fallback: bool = True
+    llm_input_price_per_mtok: float | None = None
+    llm_output_price_per_mtok: float | None = None
+
+    # Embeddings / vector store
+    embedding_backend: str = "auto"  # auto | sentence-transformers | hashing
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    vector_backend: str = "auto"  # auto | chroma | memory
+
+    # Default run configuration
+    chunk_size: int = 700
+    chunk_overlap: int = 100
+    top_k: int = 4
+
+    # Paths and limits
+    chroma_path: Path = field(default_factory=lambda: PROJECT_ROOT / "storage" / "chroma")
+    db_path: Path = field(default_factory=lambda: PROJECT_ROOT / "storage" / "synaptiq.db")
+    upload_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "storage" / "uploads")
+    reports_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "reports")
+    sample_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "sample_docs")
