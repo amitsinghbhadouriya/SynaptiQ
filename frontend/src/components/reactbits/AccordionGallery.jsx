@@ -61,3 +61,66 @@ const AccordionGallery = ({
 
   const applyLayout = useCallback(
     animate => {
+      const panels = panelRefs.current;
+      if (!panels.length) return;
+
+      const r = Math.min(Math.max(expandRatio, 0.2), 0.9);
+      const grow = count > 1 ? (r * (count - 1)) / (1 - r) : 1;
+      const mediaSize = mediaSizeRef.current;
+
+      tlRef.current?.kill();
+      const dur = animate && !prefersReduced ? duration : 0;
+      const tl = gsap.timeline();
+
+      panels.forEach((panel, i) => {
+        if (!panel) return;
+        const isActive = i === active;
+        const media = mediaRefs.current[i];
+        const bar = barRefs.current[i];
+        const text = textRefs.current[i];
+        const collapsed = collapsedRefs.current[i];
+
+        const rot = isActive ? 0 : i < active ? tilt : -tilt;
+        const rotProp = vertical ? { rotateX: -rot } : { rotateY: rot };
+
+        tl.to(panel, { flexGrow: isActive ? grow : 1, ...rotProp, duration: dur, ease }, 0);
+
+        if (media) {
+          const drift = Math.max(-1.5, Math.min(1.5, active - i));
+          const shift = drift * parallax * mediaSize * 0.06;
+          const gray = grayscale ? (isActive ? 0 : 1) : 0;
+          tl.to(
+            media,
+            {
+              xPercent: -50,
+              yPercent: -50,
+              x: vertical ? 0 : isActive ? 0 : shift,
+              y: vertical ? (isActive ? 0 : shift) : 0,
+              '--ag-gray': gray,
+              '--ag-dim': isActive ? 0 : 0.35,
+              duration: dur,
+              ease
+            },
+            0
+          );
+        }
+
+        if (collapsed) {
+          tl.to(collapsed, { opacity: isActive ? 0 : 1, duration: dur * (isActive ? 0.4 : 0.8), ease }, 0);
+        }
+
+        if (showLabels && bar && text) {
+          if (isActive) {
+            tl.to([bar, text], { opacity: 1, x: 0, duration: dur, ease, stagger: prefersReduced ? 0 : stagger }, 0);
+          } else {
+            tl.to([bar, text], { opacity: 0, x: -14, duration: dur * 0.6, ease }, 0);
+          }
+        }
+      });
+
+      tlRef.current = tl;
+    },
+    [
+      active,
+      count,
+      expandRatio,
