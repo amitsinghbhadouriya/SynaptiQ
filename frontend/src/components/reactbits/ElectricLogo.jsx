@@ -602,3 +602,205 @@ const ElectricLogo = ({
 }) => {
   const containerRef = useRef(null);
   const settingsRef = useRef(null);
+  const shapeRef = useRef(null);
+
+  useEffect(() => {
+    settingsRef.current = {
+      color,
+      glowColor,
+      scale,
+      intensity,
+      glow,
+      thickness,
+      strands,
+      bend,
+      crackle,
+      arcs,
+      flicker,
+      fill,
+      speed,
+      interactive,
+      cursorIntensity,
+      cursorRadius,
+      theme,
+      onRender
+    };
+  });
+
+  useEffect(() => {
+    let alive = true;
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.decoding = 'async';
+    image.onload = () => {
+      if (!alive) return;
+      let traced = null;
+      try {
+        traced = traceShape(image);
+      } catch {
+        traced = null;
+      }
+      if (traced) shapeRef.current = traced;
+    };
+    image.src = src || BOLT;
+    return () => {
+      alive = false;
+      image.onload = null;
+    };
+  }, [src]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const renderer = new Renderer({
+      dpr: Math.min(window.devicePixelRatio || 1, 2),
+      alpha: true,
+      premultipliedAlpha: true,
+      antialias: false
+    });
+    const gl = renderer.gl;
+    if (!renderer.isWebgl2) {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      return undefined;
+    }
+    gl.clearColor(0, 0, 0, 0);
+    const canvas = gl.canvas;
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    container.appendChild(canvas);
+
+    const makeSlot = () => ({
+      shape: null,
+      field: new Texture(gl, {
+        image: new Float32Array([1000]),
+        width: 1,
+        height: 1,
+        internalFormat: gl.R16F,
+        format: gl.RED,
+        type: gl.FLOAT,
+        minFilter: gl.LINEAR,
+        magFilter: gl.LINEAR,
+        generateMipmaps: false,
+        flipY: false,
+        unpackAlignment: 1
+      }),
+      glow: new Texture(gl, {
+        image: new Float32Array([0, 0]),
+        width: 1,
+        height: 1,
+        internalFormat: gl.RG16F,
+        format: gl.RG,
+        type: gl.FLOAT,
+        minFilter: gl.LINEAR,
+        magFilter: gl.LINEAR,
+        generateMipmaps: false,
+        flipY: false,
+        unpackAlignment: 1
+      })
+    });
+    const slots = [makeSlot(), makeSlot()];
+
+    const arcEnds = Array.from({ length: ARCS * 4 }, () => 0);
+    const arcShape = Array.from({ length: ARCS * 4 }, () => 0);
+    const pulseData = Array.from({ length: PULSES * 4 }, () => 0);
+    const uniforms = {
+      tFieldFrom: { value: slots[1].field },
+      tGlowFrom: { value: slots[1].glow },
+      tFieldTo: { value: slots[0].field },
+      tGlowTo: { value: slots[0].glow },
+      uMapFrom: { value: [0, 0, 1, 0] },
+      uSizeFrom: { value: [1, 1, 1, 1] },
+      uMapTo: { value: [0, 0, 1, 0] },
+      uSizeTo: { value: [1, 1, 1, 1] },
+      uMorph: { value: 1 },
+      uResolution: { value: [1, 1] },
+      uUnit: { value: 1 },
+      uTime: { value: 0 },
+      uPresence: { value: 0 },
+      uHover: { value: [0, 0, 0] },
+      uHoverRadius: { value: 120 },
+      uPulses: { value: pulseData },
+      uPulseBoost: { value: 0 },
+      uFlash: { value: 0 },
+      uColor: { value: [1, 1, 1] },
+      uGlowColor: { value: [0.43, 0.48, 1] },
+      uIntensity: { value: 1 },
+      uGlow: { value: 1 },
+      uThickness: { value: 1.8 },
+      uStrands: { value: 3 },
+      uBend: { value: 1 },
+      uCrackle: { value: 1 },
+      uFlicker: { value: 0.4 },
+      uFill: { value: 0.5 },
+      uInk: { value: 0 },
+      uArcEnds: { value: arcEnds },
+      uArcShape: { value: arcShape }
+    };
+    const mesh = new Mesh(gl, {
+      geometry: new Triangle(gl),
+      program: new Program(gl, { vertex, fragment, uniforms, depthTest: false, depthWrite: false })
+    });
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const pointer = { x: 0, y: 0, over: false };
+    const hover = { x: 0, y: 0, vx: 0, vy: 0, power: 0 };
+    const sparks = [];
+    const pulses = [];
+    let target = 0;
+    let pending = null;
+    let morph = 1;
+    let burst = null;
+    let progress = 0;
+    let ink = 0;
+    const hues = [
+      [1, 1, 1],
+      [1, 1, 1]
+    ];
+    let settled = false;
+    let time = 0;
+    let width = 1;
+    let height = 1;
+    let raf = 0;
+    let last = performance.now();
+    let visible = true;
+
+    const load = (slot, next) => {
+      slot.shape = next;
+      slot.field.image = next.field;
+      slot.field.width = next.width;
+      slot.field.height = next.height;
+      slot.field.needsUpdate = true;
+      slot.glow.image = next.glow;
+      slot.glow.width = next.glowWidth;
+      slot.glow.height = next.glowHeight;
+      slot.glow.needsUpdate = true;
+    };
+
+    const place = (shape, s) => {
+      const fit = Math.max(1e-4, Math.min((width * s.scale) / shape.logoWidth, (height * s.scale) / shape.logoHeight));
+      return {
+        fit,
+        ox: width / 2 - (shape.pad + shape.logoWidth / 2) * fit,
+        oy: height / 2 - (shape.pad + shape.logoHeight / 2) * fit,
+        unit: (Math.max(shape.logoWidth, shape.logoHeight) * fit) / 100
+      };
+    };
+
+    const resize = () => {
+      width = Math.max(1, container.clientWidth);
+      height = Math.max(1, container.clientHeight);
+      renderer.dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(PIXEL_BUDGET / (width * height)));
+      renderer.setSize(width, height);
+      uniforms.uResolution.value = [width, height];
+    };
+
+    const frame = now => {
+      raf = 0;
+      const s = settingsRef.current;
+      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+      last = now;
+
+      const incoming = shapeRef.current;
+      if (incoming && incoming !== slots[target].shape) pending = incoming;
