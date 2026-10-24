@@ -36,3 +36,42 @@ class Diagnosis:
     code: str
     reason: str
     evidence: list[str] = field(default_factory=list)
+
+    @property
+    def label(self) -> str:
+        return LABELS[self.code]
+
+    @property
+    def next_action(self) -> str:
+        return NEXT_ACTIONS[self.code]
+
+
+def diagnose(
+    retrieval_supported: bool | None,
+    generator_passed: bool | None,
+    end_to_end_passed: bool | None,
+    *,
+    answerable: bool = True,
+    end_to_end_correct: bool | None = None,
+    notes: list[str] | None = None,
+) -> Diagnosis:
+    """Combine the three independent test results into a likely diagnosis."""
+    notes = list(notes or [])
+
+    if not answerable:
+        # Unanswerable questions: the right behaviour is to abstain.
+        if end_to_end_passed is True and generator_passed is not False:
+            return Diagnosis("PASS", "The system correctly declined a question the document cannot answer.", notes)
+        if end_to_end_passed is False or generator_passed is False:
+            return Diagnosis(
+                "LIKELY_GENERATION_FAILURE",
+                "The question is unanswerable from the document, but the generator produced an answer instead of "
+                "declining — a hallucination risk.",
+                notes,
+            )
+        return Diagnosis("UNCERTAIN_REQUIRES_REVIEW", "Not enough measurements to judge abstention.", notes)
+
+    if retrieval_supported is False and end_to_end_correct is True:
+        return Diagnosis(
+            "CORRECT_BUT_UNGROUNDED",
+            "The final answer matches the reference, but the retrieved chunks do not contain the reference "
