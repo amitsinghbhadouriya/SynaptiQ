@@ -23,3 +23,29 @@ Primary caregivers are offered 18 weeks of fully paid parental leave. Secondary 
 Every new engineer receives a hardware budget of 2,500 euros for a laptop, monitor and accessories. Other roles receive a budget of 1,500 euros. The hardware budget renews every three years, and older equipment may be kept after the renewal. A one-time home office allowance of 400 euros covers a desk, chair or lighting.
 
 If a company laptop is lost or stolen, the employee must report it to the IT Service Desk within 24 hours so the device can be locked remotely. A police report is required for stolen devices. Lost equipment is replaced from the hardware budget only once per renewal period.
+
+# Travel and Expenses
+
+Domestic business travel can be booked directly in the travel portal. International travel must be approved by a department director before any booking is made. Economy class is the default for flights shorter than six hours.
+
+Hotel stays within the country are reimbursed up to 150 euros per night. Hotel stays abroad are reimbursed up to 220 euros per night, or the local limit published in the travel portal if that is higher. Meals during travel are covered by a daily allowance of 45 euros.
+
+Expense claims are submitted through the Ledgerly app with a photo of each receipt. Claims must be submitted within 30 days of the expense date; claims submitted later are reviewed case by case and may be declined. Approved expenses are reimbursed with the next monthly salary payment.
+
+# Learning and Development
+
+Each employee has an annual learning budget of 1,200 euros for courses, books and conferences. Up to five working days per year can be used for learning activities. Conference talks given by employees are supported with travel funding on top of the learning budget.
+
+# Security and Acceptable Use
+
+All company accounts are protected with single sign-on and a hardware security key. Passwords must never be shared, including with the IT Service Desk. Suspicious messages that ask for credentials or payment details must be forwarded to security@lumenlabs.example and then deleted. Customer data may only be stored in approved systems listed on the security wiki.
+
+Personal use of company devices is allowed within reason, but software that has not been approved by IT must not be installed. Security training is completed during onboarding and refreshed every twelve months.
+
+# Benefits
+
+Lumen Labs matches retirement plan contributions up to 5 percent of base salary. Health insurance covers employees and their registered dependants from the first day of employment. A monthly wellbeing allowance of 60 euros can be used for sports, therapy or mindfulness apps.
+
+# Leaving Lumen Labs
+
+The notice period is one month during probation and three months afterwards, unless the employment contract states otherwise. Departing employees return all equipment that is less than three years old on their last working day. An exit conversation with People Operations is offered to everyone who leaves.
