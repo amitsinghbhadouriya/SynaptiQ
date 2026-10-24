@@ -40,3 +40,46 @@ export default function Loop() {
         >
           SynaptiQ is not a black-box document chatbot. It is a precision diagnostics engine that pinpoints what failed,
           explains why it failed, and measures whether your targeted change produced a verifiable improvement.
+        </ScrollReveal>
+
+        <div className="loop-container">
+          <ol className="loop">
+            {LOOP.map((item, index) => {
+              const meta = STEP_META[index] || STEP_META[0];
+              const StepIcon = meta.icon;
+
+              return (
+                <li
+                  key={item.step}
+                  className="loop__step cursor-target"
+                  data-cursor-label={item.title}
+                >
+                  <div className="loop__step-top">
+                    <span className="loop__num">{item.step}</span>
+                    <div className="loop__step-icon">
+                      <StepIcon size={18} />
+                    </div>
+                  </div>
+
+                  <span className="loop__badge">{meta.badge}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+
+                  <div className="loop__footer">
+                    <span className="loop__highlight">{meta.highlight}</span>
+                  </div>
+
+                  {index < LOOP.length - 1 && (
+                    <div className="loop__connector" aria-hidden="true">
+                      <ArrowRight size={14} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+    </section>
+  );
+}
