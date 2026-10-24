@@ -94,3 +94,52 @@ To add a new provider (e.g., local Ollama or OpenAI embeddings):
 ---
 
 ## 5. Adding a Custom Evaluation Metric
+
+Metrics calculation lives in **`backend/metrics.py`**.
+
+To add a custom metric (for example, `BleuScore` or `LatencyThreshold`):
+1. Write a pure, deterministic scoring function:
+   ```python
+   def compute_custom_metric(generated: str, reference: str) -> float:
+       if not generated or not reference:
+           return 0.0
+       # Calculate your score between 0.0 and 1.0
+       return score
+   ```
+2. Call your metric in `evaluate_mode()` in `backend/evaluator.py` under the relevant test mode (`retriever`, `generator`, or `end_to_end`).
+3. Add the metric key to the summary statistics in `backend/evaluator.py`.
+
+---
+
+## 6. Adding a New Diagnosis Rule
+
+Root-cause diagnosis lives in **`backend/root_cause.py`**.
+
+To add a new failure classification rule:
+1. Define the new code and plain-English label in `LABELS` and `NEXT_ACTIONS`:
+   ```python
+   LABELS["TOKEN_LIMIT_EXCEEDED"] = "Context length exceeded"
+   NEXT_ACTIONS["TOKEN_LIMIT_EXCEEDED"] = "Reduce top-k or use smaller chunk sizes."
+   ```
+2. In `diagnose()`, add your rule condition checking the three mode flags:
+   ```python
+   if context_overflow is True:
+       return Diagnosis("TOKEN_LIMIT_EXCEEDED", "The retrieved chunks exceeded the context window.", notes)
+   ```
+3. Add corresponding recommendation logic in `backend/recommendations.py`.
+
+---
+
+## 7. Adding a New Dashboard Tab in React
+
+The dashboard is organized under `frontend/src/dashboard/`:
+- Tabs live in `frontend/src/dashboard/tabs/` (`Overview.jsx`, `Documents.jsx`, `Evaluations.jsx`, `Analytics.jsx`, `Reports.jsx`).
+
+To add a new tab (e.g., `Latency.jsx`):
+1. Create `frontend/src/dashboard/tabs/Latency.jsx`.
+2. In `frontend/src/dashboard/TopBar.jsx`, add your tab to the `TABS` array:
+   ```javascript
+   { id: 'latency', label: 'Latency', icon: Clock }
+   ```
+3. In `frontend/src/dashboard/DashboardApp.jsx`, import your component and render it when `tab === 'latency'`.
+4. Rebuild the frontend bundle with `npm run build` inside `frontend/`.
