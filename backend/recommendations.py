@@ -96,3 +96,53 @@ def for_question(result: QuestionResult, config: RunConfig) -> dict[str, Any] | 
             "title": "Switch to the strict grounded prompt",
             "why": "The model added claims that are not in the evidence or answered without support.",
             "change": _change("prompt_version", "grounded-strict-v2", config),
+        }
+    if code == "PIPELINE_INTERACTION_FAILURE":
+        new_k = max(1, config.top_k - 2)
+        return {
+            "title": f"Reduce top-k from {config.top_k} to {new_k}",
+            "why": "The answer is correct with clean evidence but fails with the full retrieved context.",
+            "change": _change("top_k", new_k, config),
+        }
+    return None
+
+
+def apply_change(config: RunConfig, change: dict[str, Any]) -> RunConfig:
+    data = config.to_dict()
+    data[change["key"]] = change["to"]
+    data.update(change.get("also", {}))
+    if data["chunk_overlap"] >= data["chunk_size"]:
+        data["chunk_overlap"] = data["chunk_size"] // 6
+    return RunConfig.from_dict(data)
+
+
+# Retrieval problems are fixed first: generation cannot succeed without the evidence.
+PRIORITY = {
+    "LIKELY_RETRIEVAL_FAILURE": 3, "LIKELY_COMBINED_FAILURE": 3, "CORRECT_BUT_UNGROUNDED": 2,
+    "LIKELY_GENERATION_FAILURE": 1.5, "PIPELINE_INTERACTION_FAILURE": 1,
+}
+
+
+def top_recommendation(results: list[QuestionResult], config: RunConfig) -> dict[str, Any] | None:
+    """The suggested change with the most weighted support across failing questions."""
+    scored: Counter = Counter()
+    votes: Counter = Counter()
+    examples: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in results:
+        if not r.recommendation:
+            continue
+        change = r.recommendation["change"]
+        # Larger top-k values subsume smaller ones, so they pool their support under one key.
+        key = ("top_k", "increase") if change["key"] == "top_k" and change["to"] > change["from"] else \
+            (change["key"], str(change["to"]))
+        scored[key] += PRIORITY.get(r.diagnosis, 1)
+        votes[key] += 1
+        previous = examples.get(key)
+        if previous is None or (key == ("top_k", "increase") and change["to"] > previous["change"]["to"]):
+            examples[key] = r.recommendation
+    if not scored:
+        return None
+    best = max(scored, key=lambda k: (scored[k], votes[k]))
+    chosen = examples[best]
+    return {**chosen, "votes": votes[best], "failing": sum(1 for r in results if r.diagnosis != "PASS"),
+            "candidate_config": apply_change(config, chosen["change"]).to_dict()}
