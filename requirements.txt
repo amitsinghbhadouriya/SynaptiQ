@@ -22,3 +22,16 @@ rapidfuzz==3.14.6
 # ragas 0.4.3 imports a module removed in langchain-community 0.4 — keep this pin
 langchain-community==0.3.31
 
+# Tables and charts
+pandas==3.1.0
+plotly==7.1.0
+
+# Optional live LLM (Claude) for answers and test-set generation: set LLM_PROVIDER=anthropic
+anthropic==2.3.0
+
+# Configuration
+python-dotenv==1.2.4
+
+# Tests (FastAPI's TestClient uses httpx)
+pytest==9.1.1
+httpx==0.28.1
