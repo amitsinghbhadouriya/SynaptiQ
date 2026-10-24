@@ -1,0 +1,31 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import BounceCards from '../../components/reactbits/BounceCards.jsx';
+import { STACK } from '../content.js';
+import { techCard, getTechIconSvg } from '../techCards.js';
+import { SectionHeading } from '../shared.jsx';
+
+const useWidth = ref => {
+  const [width, setWidth] = useState(1000);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+};
+
+// React Bits BounceCards showing every technology SynaptiQ is built with, using authentic tech symbols.
+export default function TechStack() {
+  const wrapRef = useRef(null);
+  const width = useWidth(wrapRef);
+  const perRow = width < 560 ? 3 : 6;
+  const cardSize = Math.max(96, Math.min(172, Math.floor(width / (perRow * 0.82))));
+  // Leave room for the tilt and the hover push so the outer cards stay inside the section.
+  const spread = Math.min(cardSize * 1.04, (width - cardSize * 1.25) / Math.max(1, perRow - 1));
+  const rows = useMemo(() => {
+    const cards = STACK.map((item, index) => techCard(item, index));
+    const out = [];
+    for (let i = 0; i < cards.length; i += perRow) out.push(cards.slice(i, i + perRow));
