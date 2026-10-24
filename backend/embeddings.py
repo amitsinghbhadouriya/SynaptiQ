@@ -74,3 +74,41 @@ class SentenceTransformerEmbedder:
 
         self.name = model_name
         self._model = SentenceTransformer(model_name, device="cpu")
+        getter = getattr(self._model, "get_embedding_dimension", None) or self._model.get_sentence_embedding_dimension
+        self.dim = int(getter() or 384)
+        self._lock = threading.Lock()
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        with self._lock:
+            vectors = self._model.encode(
+                texts, batch_size=32, normalize_embeddings=True, show_progress_bar=False, convert_to_numpy=True
+            )
+        return [v.tolist() for v in vectors]
+
+
+_CACHE: dict[tuple[str, str], Embedder] = {}
+_CACHE_LOCK = threading.Lock()
+
+
+def get_embedder(backend: str, model_name: str) -> Embedder:
+    """Return a cached embedder; 'auto' tries sentence-transformers and falls back to hashing."""
+    backend = (backend or "auto").lower()
+    key = (backend, model_name)
+    with _CACHE_LOCK:
+        if key in _CACHE:
+            return _CACHE[key]
+        if backend == "hashing":
+            embedder: Embedder = HashingEmbedder()
+        else:
+            try:
+                embedder = SentenceTransformerEmbedder(model_name)
+            except Exception as exc:  # ImportError, network errors, bad model names
+                if backend == "sentence-transformers":
+                    raise
+                reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+                log.warning("Falling back to hashing embeddings (%s)", reason)
+                embedder = HashingEmbedder(fallback_reason=reason)
+        _CACHE[key] = embedder
+        return embedder
