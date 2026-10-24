@@ -199,3 +199,71 @@ function TestSet({ data, theme, act }) {
                   aria-pressed={q.review_status === 'approved'}
                 >
                   <Check size={14} aria-hidden="true" /> Approve
+                </button>
+                <button
+                  type="button"
+                  className={`d-review d-review--no${q.review_status === 'rejected' ? ' is-on' : ''}`}
+                  onClick={() => act.review(q.question_id, 'rejected')}
+                  aria-pressed={q.review_status === 'rejected'}
+                >
+                  <X size={14} aria-hidden="true" /> Reject
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+export default function Evaluations({ data, selected, theme, act }) {
+  const [view, setView] = useState('results');
+  const runs = data.runs.filter(r => r.status === 'completed');
+
+  return (
+    <div className="d-page">
+      <div className="d-page__head">
+        <div>
+          <h1>Evaluations</h1>
+          <p>Retriever-only, generator-only and end-to-end results for every question, with the evidence behind each verdict.</p>
+        </div>
+        <div className="d-page__tools">
+          {runs.length > 0 && <RunSelect runs={runs} value={selected?.run_id} onChange={act.selectRun} />}
+          <Segmented
+            label="View"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'results', label: 'Results' },
+              { value: 'tests', label: 'Test set' }
+            ]}
+          />
+          <Button variant="primary" theme={theme} icon={Play} onClick={() => act.configure(data.focus_document_id)}>
+            Run evaluation
+          </Button>
+        </div>
+      </div>
+
+      {view === 'tests' ? (
+        <TestSet data={data} theme={theme} act={act} />
+      ) : selected ? (
+        <Results data={data} selected={selected} theme={theme} act={act} />
+      ) : (
+        <Card>
+          <Empty
+            icon={FlaskConical}
+            title="No evaluation runs yet"
+            actions={
+              <Button variant="primary" theme={theme} icon={Sparkles} onClick={act.demo}>
+                Load demo workspace
+              </Button>
+            }
+          >
+            Upload a document, generate and review a test set, then run the three evaluation modes.
+          </Empty>
+        </Card>
+      )}
+    </div>
+  );
+}
