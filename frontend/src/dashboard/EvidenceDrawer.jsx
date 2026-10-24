@@ -55,3 +55,60 @@ function AnswerBlock({ title, mode }) {
 
 export default function EvidenceDrawer({ result, onClose, theme, onRunCandidate, runId }) {
   useEffect(() => {
+    const onKey = event => event.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!result) return null;
+  const retriever = result.modes.retriever;
+  // Portal to <body>: animated ancestors would otherwise become the containing block of this fixed overlay.
+  return createPortal(
+    <div className="ev-backdrop" onClick={onClose}>
+      <aside
+        className="ev-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ev-title"
+        onClick={event => event.stopPropagation()}
+      >
+        <header className="ev-drawer__head">
+          <div className="ev-drawer__tags">
+            <Badge tone="neutral">{TYPE_LABEL[result.type] || result.type}</Badge>
+            <DiagnosisBadge code={result.diagnosis} label={result.diagnosis_label} />
+          </div>
+          <button type="button" className="ev-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </header>
+        <h2 id="ev-title" className="ev-question">
+          {result.question}
+        </h2>
+
+        <section className="ev-section ev-diagnosis">
+          <h3>Why this diagnosis</h3>
+          <p>{result.diagnosis_reason}</p>
+          {result.notes?.length > 0 && (
+            <ul className="ev-notes">
+              {result.notes.map(note => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          )}
+          {result.recommendation && (
+            <div className="ev-rec">
+              <Lightbulb size={15} aria-hidden="true" />
+              <div>
+                <b>{result.recommendation.title}</b>
+                <span>{result.recommendation.why}</span>
+              </div>
+              {onRunCandidate && (
+                <Button variant="primary" theme={theme} size="sm" onClick={() => onRunCandidate(runId)}>
+                  Test run’s top fix
+                </Button>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="ev-section">
