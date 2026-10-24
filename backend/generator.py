@@ -73,3 +73,78 @@ class Generator(Protocol):
     provider: str
     model: str
 
+    def generate(self, question: str, contexts: list[str], config: RunConfig) -> GenerationResult: ...
+
+
+def build_user_prompt(question: str, contexts: list[str]) -> str:
+    blocks = "\n".join(
+        f'<evidence id="{i + 1}">\n{c.strip()}\n</evidence>' for i, c in enumerate(contexts) if c and c.strip()
+    ) or "<evidence>(no evidence was retrieved)</evidence>"
+    return f"{blocks}\n\nQuestion: {question.strip()}"
+
+
+class OfflineExtractiveGenerator:
+    provider = "offline"
+    model = "offline-extractive"
+
+    def __init__(self, embedder: Embedder | None = None):
+        self.embedder = embedder
+
+    def generate(self, question: str, contexts: list[str], config: RunConfig) -> GenerationResult:
+        started = time.perf_counter()
+        sentences = [s.text for c in contexts for s in split_sentences(c) if len(s.text) > 12]
+        if not sentences:
+            return self._result(ABSTAIN_ANSWER, started, config)
+
+        q_tokens = content_tokens(question)
+        # IDF over the candidate sentences so frequent words matter less.
+        df: dict[str, int] = {}
+        sent_tokens = [set(content_tokens(s)) for s in sentences]
+        for tokens in sent_tokens:
+            for t in tokens:
+                df[t] = df.get(t, 0) + 1
+        n = len(sentences)
+        idf = {t: math.log(1 + n / (1 + d)) + 1 for t, d in df.items()}
+        q_weight = sum(idf.get(t, math.log(1 + n) + 1) for t in set(q_tokens)) or 1.0
+
+        semantic = [0.0] * n
+        if self.embedder is not None:
+            vectors = self.embedder.embed([question] + sentences)
+            semantic = [max(0.0, cosine(vectors[0], v)) for v in vectors[1:]]
+
+        scored = []
+        for i, sentence in enumerate(sentences):
+            lexical = sum(idf.get(t, 0.0) for t in set(q_tokens) if t in sent_tokens[i]) / q_weight
+            scored.append((0.6 * lexical + 0.4 * semantic[i], i))
+        scored.sort(reverse=True)
+        best = scored[0][0]
+        if best < config.abstain_threshold:
+            return self._result(ABSTAIN_ANSWER, started, config, best_score=best)
+
+        keep = sorted(i for score, i in scored[: max(1, config.max_answer_sentences)] if score >= best * 0.75)
+        answer = " ".join(sentences[i] for i in keep)
+        return self._result(answer, started, config, best_score=best)
+
+    def _result(self, answer: str, started: float, config: RunConfig, best_score: float | None = None) -> GenerationResult:
+        return GenerationResult(
+            answer=answer, provider=self.provider, model=self.model, prompt_version="extractive-v1",
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            extra={"best_score": round(best_score, 4) if best_score is not None else None},
+        )
+
+
+class AnthropicGenerator:
+    """Claude via the official SDK. Thinking is adaptive on Claude Opus 5.5; effort controls depth."""
+
+    provider = "anthropic"
+
+    def __init__(self, settings: Settings):
+        import anthropic  # imported lazily so offline mode never needs the package
+
+        self._anthropic = anthropic
+        self.client = anthropic.Anthropic(timeout=settings.llm_timeout_s, max_retries=2)
+        self.model = settings.llm_model
+        self.effort = settings.llm_effort if settings.llm_effort in {"low", "medium", "high", "xhigh", "max"} else "low"
+        self.refusal_fallback = settings.llm_refusal_fallback
+        self.prices = (
+            (settings.llm_input_price_per_mtok, settings.llm_output_price_per_mtok)
