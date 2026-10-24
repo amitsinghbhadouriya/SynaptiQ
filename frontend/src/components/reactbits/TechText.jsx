@@ -619,3 +619,210 @@ const TechText = ({
       for (const cell of cells) {
         if (progress < cell.land) continue;
         const [x, y, w, h] = cellRect(cell.x, cell.y, cell.size);
+        ctx.rect(x, y, w, h);
+        landed++;
+      }
+      if (landed) {
+        ctx.clip();
+        blit(ctx, glyph.fill, 0, 0, 0, 0);
+      }
+      ctx.restore();
+      ctx.fillStyle = accent;
+      for (const cell of cells) {
+        if (progress < cell.start || progress >= cell.land) continue;
+        const u = (progress - cell.start) / (cell.land - cell.start);
+        const eased = 1 - Math.pow(1 - u, 4);
+        const size = cell.size * (0.4 + 0.6 * eased);
+        const x = cell.x + (cell.size - size) / 2 + cell.dx * (1 - eased);
+        const y = cell.y + (cell.size - size) / 2 + cell.dy * (1 - eased);
+        const [left, top, w, h] = cellRect(x, y, size);
+        ctx.globalAlpha = Math.min(1, u * 4) * (0.55 + 0.45 * eased);
+        ctx.fillRect(left, top, Math.max(1, w), Math.max(1, h));
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const drawFilling = (glyph, lead, progress, view) => {
+      const art = glyph.fill;
+      const left = Math.floor(art.left * dpr);
+      const top = Math.floor(art.top * dpr);
+      const w = art.image.width + 2;
+      const h = art.image.height + 2;
+      const fill = clamp01((progress - 0.24 - 0.28 * lead) / 0.48);
+      const rects = [];
+      for (const band of view.bands) {
+        const amount = smoothstep(0.3 * band.order, 0.3 * band.order + 0.4, fill);
+        if (amount <= 0) continue;
+        const span = (band.y1 - band.y0) * amount;
+        const y0 = Math.round((band.up ? band.y1 - span : band.y0) * dpr);
+        const y1 = Math.round((band.up ? band.y1 : band.y0 + span) * dpr);
+        if (y1 > y0) rects.push([y0, y1 - y0]);
+      }
+      const outline = smoothstep(0.08 + 0.2 * lead, 0.22 + 0.2 * lead, progress);
+      if (outline > 0.001) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(left - 2, top - 2, w + 2, h + 2);
+        for (const [y, span] of rects) ctx.rect(left - 2, y, w + 2, span);
+        ctx.clip('evenodd');
+        ctx.globalAlpha = outline;
+        blit(ctx, glyph.dashes, 0, 0, 0, 0);
+        ctx.restore();
+      }
+      if (rects.length) {
+        ctx.save();
+        ctx.beginPath();
+        for (const [y, span] of rects) ctx.rect(left - 2, y, w + 2, span);
+        ctx.clip();
+        blit(ctx, glyph.fill, 0, 0, 0, 0);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const kick = index => {
+      const strength = (word ? word.size : 120) * 11;
+      kicks.push({ index, at: pulse, velocity: strength });
+      for (let d = 1; d < glyphs.length; d++) {
+        const velocity = strength * Math.pow(KICK_DECAY, d);
+        if (velocity < 30) break;
+        for (const j of [index - d, index + d]) {
+          if (j >= 0 && j < glyphs.length) kicks.push({ index: j, at: pulse + d * 0.055, velocity });
+        }
+      }
+      wakeRef.current();
+    };
+
+    const tick = now => {
+      raf = 0;
+      const s = settingsRef.current;
+      if (!s) return;
+      const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      last = now;
+      const { ink, accent } = palette(s);
+      const view = ensureLayout(s, ink);
+      const damping = 2 * Math.sqrt(SPRING) * (1 - clamp01(s.bounce) * 0.96);
+
+      if (s.intro !== introKind) {
+        introKind = s.intro;
+        introClock = 0;
+      }
+      const introOn = introKind !== 'none' && !reducedMotion && glyphs.length > 0;
+      if (introOn && fontsReady) introClock += dt;
+      const progress = introOn ? clamp01((introClock - INTRO_DELAY) / Math.max(0.3, s.introDuration)) : 1;
+      introducing = introOn && progress < 1;
+
+      const sweeping = !introducing && s.sweep && !reducedMotion && !pointer.inside && dragging < 0;
+      if (sweeping) clock += dt * s.speed;
+      pulse += dt;
+      let targetX = pointer.x;
+      let targetY = pointer.y;
+      if (sweeping) {
+        targetX = view.left + (view.right - view.left) * (0.5 - 0.5 * Math.cos(clock * 0.45));
+        targetY = view.top + (view.bottom - view.top) * (0.45 + 0.1 * Math.sin(clock * 0.8));
+      }
+      const active = !introducing && (pointer.inside || sweeping || dragging >= 0);
+      if (active && !placed) {
+        lens.x = targetX;
+        lens.y = targetY;
+      }
+      if (active) {
+        const lag = pointer.inside ? 0.05 : 0.22;
+        lens.x = approach(lens.x, targetX, dt, lag);
+        lens.y = approach(lens.y, targetY, dt, lag);
+      }
+      placed = active;
+      presence = approach(presence, s.reveal === 'area' && active && dragging < 0 ? 1 : 0, dt, 0.16);
+
+      for (let k = kicks.length - 1; k >= 0; k--) {
+        if (kicks[k].at > pulse) continue;
+        const glyph = glyphs[kicks[k].index];
+        if (glyph) glyph.velocity.y -= kicks[k].velocity;
+        kicks.splice(k, 1);
+      }
+
+      let moving = false;
+      glyphs.forEach((glyph, i) => {
+        if (i === dragging) {
+          glyph.offset.x = approach(glyph.offset.x, pointer.x - grab.x, dt, 0.03);
+          glyph.offset.y = approach(glyph.offset.y, pointer.y - grab.y, dt, 0.03);
+          glyph.velocity.x = 0;
+          glyph.velocity.y = 0;
+          moving = true;
+          return;
+        }
+        const { offset, velocity } = glyph;
+        if (Math.abs(offset.x) < 0.05 && Math.abs(offset.y) < 0.05 && Math.hypot(velocity.x, velocity.y) < 0.5) {
+          offset.x = 0;
+          offset.y = 0;
+          velocity.x = 0;
+          velocity.y = 0;
+          return;
+        }
+        velocity.x += (-SPRING * offset.x - damping * velocity.x) * dt;
+        velocity.y += (-SPRING * offset.y - damping * velocity.y) * dt;
+        offset.x += velocity.x * dt;
+        offset.y += velocity.y * dt;
+        moving = true;
+      });
+
+      let typing = -1;
+      if (introducing && introKind === 'type') {
+        const step = 0.86 / glyphs.length;
+        const cursorAt = Math.min(glyphs.length - 1, Math.floor(progress / step));
+        typing = progress < 0.93 ? cursorAt : -1;
+        glyphs.forEach((glyph, i) => {
+          glyph.shown = i < cursorAt ? 1 : i === cursorAt ? smoothstep(0, step * 0.3, progress - i * step) : 0;
+        });
+      } else {
+        glyphs.forEach(glyph => {
+          glyph.shown = 1;
+        });
+      }
+
+      const focus = introducing ? typing : dragging >= 0 ? dragging : active ? glyphAt(lens.x, lens.y) : -1;
+      if (focus >= 0 && s.selection) {
+        const glyph = glyphs[focus];
+        const bx1 = glyph.box.x1 + glyph.offset.x - 6;
+        const by1 = glyph.box.y1 + glyph.offset.y - 6;
+        const bx2 = glyph.box.x2 + glyph.offset.x + 6;
+        const by2 = glyph.box.y2 + glyph.offset.y + 6;
+        if (frame.index < 0 || frame.alpha < 0.02) {
+          frame.x1 = bx1;
+          frame.y1 = by1;
+          frame.x2 = bx2;
+          frame.y2 = by2;
+        }
+        const glide = focus === dragging ? 0.02 : 0.08;
+        frame.x1 = approach(frame.x1, bx1, dt, glide);
+        frame.y1 = approach(frame.y1, by1, dt, glide);
+        frame.x2 = approach(frame.x2, bx2, dt, glide);
+        frame.y2 = approach(frame.y2, by2, dt, glide);
+        frame.index = focus;
+      }
+      frame.alpha = approach(frame.alpha, focus >= 0 && s.selection ? 1 : 0, dt, 0.1);
+
+      glyphs.forEach((glyph, i) => {
+        const target = introducing
+          ? introKind === 'type' && (i === typing || (typing >= 0 && i > typing))
+            ? 1
+            : 0
+          : s.reveal === 'letter' && i === focus && i !== dragging
+            ? 1
+            : 0;
+        if (introducing && glyph.shown === 0) glyph.outline = target;
+        glyph.outline = approach(glyph.outline, target, dt, 0.09);
+        if (Math.abs(glyph.outline - target) > 0.002) moving = true;
+        else glyph.outline = target;
+      });
+
+      guideAlpha = approach(guideAlpha, s.guides && !introducing && (focus >= 0 || presence > 0.4) ? 1 : 0, dt, 0.14);
+
+      const hovering = !introducing && focus >= 0 && pointer.inside;
+      const nextCursor =
+        dragging >= 0 ? 'grabbing' : hovering && s.draggable ? 'grab' : hovering && s.clickKick ? 'pointer' : '';
+      if (nextCursor !== cursor) {
+        cursor = nextCursor;
+        container.style.cursor = nextCursor;
+      }
+
