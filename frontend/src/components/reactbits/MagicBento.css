@@ -899,3 +899,229 @@
   stroke-dasharray: 1;
   animation: magic-bento-draw 700ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--mb-delay) + 360ms) both paused;
 }
+
+.magic-bento[data-motion] .magic-bento__card[data-active] .magic-bento__packet {
+  animation: magic-bento-packet 1.8s cubic-bezier(0.45, 0, 0.55, 1) calc(var(--i) * 0.45s) infinite;
+}
+
+.magic-bento[data-motion] .magic-bento__switch {
+  animation: magic-bento-switch-track 420ms ease calc(var(--mb-delay) + 520ms + var(--i) * 200ms) both paused;
+}
+
+.magic-bento[data-motion] .magic-bento__switch::after {
+  animation: magic-bento-switch-knob 520ms var(--mb-spring) calc(var(--mb-delay) + 520ms + var(--i) * 200ms) both paused;
+}
+
+.magic-bento[data-motion] .magic-bento__switch[data-off],
+.magic-bento[data-motion] .magic-bento__switch[data-off]::after {
+  animation: none;
+}
+
+.magic-bento[data-motion]
+  .magic-bento__cell[data-state='in']
+  :is(
+    .magic-bento__chart-line,
+    .magic-bento__chart-area,
+    .magic-bento__bar,
+    .magic-bento__selection,
+    .magic-bento__pending,
+    .magic-bento__spinner,
+    .magic-bento__done,
+    .magic-bento__step-time,
+    .magic-bento__rail-fill,
+    .magic-bento__hub-node,
+    .magic-bento__hub-links line,
+    .magic-bento__switch
+  ) {
+  animation-play-state: running;
+}
+
+.magic-bento[data-motion] .magic-bento__cell[data-state='in'] .magic-bento__switch::after {
+  animation-play-state: running;
+}
+
+.magic-bento[data-motion] .magic-bento__cell[data-state='in'] .magic-bento__cursor {
+  animation-play-state: running, paused;
+}
+
+.magic-bento[data-motion] .magic-bento__cell[data-state='in'] .magic-bento__card[data-active] .magic-bento__cursor {
+  animation-play-state: running, running;
+}
+
+.magic-bento[data-motion] .magic-bento__card[data-active] .magic-bento__caret {
+  animation-play-state: running;
+}
+
+.magic-bento[data-motion] .magic-bento__cell[data-state='in'] .magic-bento__spinner {
+  animation-play-state: running, running;
+}
+
+@keyframes magic-bento-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes magic-bento-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes magic-bento-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes magic-bento-pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes magic-bento-select {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes magic-bento-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes magic-bento-wait {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes magic-bento-run {
+  0% {
+    opacity: 0;
+  }
+  1%,
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes magic-bento-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes magic-bento-check {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes magic-bento-rail {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes magic-bento-packet {
+  0% {
+    top: var(--y);
+    left: var(--x);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+  }
+}
+
+@keyframes magic-bento-switch-track {
+  from {
+    background-color: var(--mb-line);
+  }
+  to {
+    background-color: rgb(var(--mb-accent-rgb));
+  }
+}
+
+@keyframes magic-bento-switch-knob {
+  from {
+    background: var(--mb-ink);
+    transform: none;
+  }
+  to {
+    background: var(--mb-accent-ink);
+    transform: translateX(10px);
+  }
+}
+
+@keyframes magic-bento-path-a {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 46px -18px;
+  }
+  62% {
+    translate: 12px 26px;
+  }
+}
+
+@keyframes magic-bento-path-b {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  35% {
+    translate: -40px 14px;
+  }
+  70% {
+    translate: -8px -22px;
+  }
+}
+
