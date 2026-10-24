@@ -87,3 +87,48 @@ class Settings:
     upload_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "storage" / "uploads")
     reports_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "reports")
     sample_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "sample_docs")
+    eval_sets_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "evaluation_sets")
+    max_upload_mb: int = 20
+    max_questions: int = 50
+
+    # Ragas non-LLM metrics run when the package is installed; set false to skip them
+    ragas_enabled: bool = True
+
+    def with_overrides(self, **changes) -> "Settings":
+        return replace(self, **changes)
+
+    @property
+    def llm_enabled(self) -> bool:
+        return self.llm_provider == "anthropic"
+
+    def ensure_dirs(self) -> None:
+        for path in (self.chroma_path, self.db_path.parent, self.upload_dir, self.reports_dir):
+            path.mkdir(parents=True, exist_ok=True)
+
+
+def load_settings() -> Settings:
+    provider = _env("LLM_PROVIDER", "offline").lower()
+    if provider not in {"offline", "anthropic"}:
+        provider = "offline"
+    return Settings(
+        llm_provider=provider,
+        llm_model=_env("LLM_MODEL", "claude-opus-5-5"),
+        llm_effort=_env("LLM_EFFORT", "low").lower(),
+        llm_timeout_s=_env_float("LLM_TIMEOUT_S", 60.0) or 60.0,
+        llm_refusal_fallback=_env_bool("LLM_REFUSAL_FALLBACK", True),
+        llm_input_price_per_mtok=_env_float("LLM_INPUT_PRICE_PER_MTOK", None),
+        llm_output_price_per_mtok=_env_float("LLM_OUTPUT_PRICE_PER_MTOK", None),
+        embedding_backend=_env("EMBEDDING_BACKEND", "auto").lower(),
+        embedding_model=_env("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+        vector_backend=_env("VECTOR_BACKEND", "auto").lower(),
+        chunk_size=_env_int("CHUNK_SIZE", 700, 100, 4000),
+        chunk_overlap=_env_int("CHUNK_OVERLAP", 100, 0, 1000),
+        top_k=_env_int("TOP_K", 4, 1, 20),
+        chroma_path=_resolve(_env("CHROMA_PATH", "./storage/chroma")),
+        db_path=_resolve(_env("DB_PATH", "./storage/synaptiq.db")),
+        upload_dir=_resolve(_env("UPLOAD_DIR", "./storage/uploads")),
+        reports_dir=_resolve(_env("REPORTS_DIR", "./reports")),
+        max_upload_mb=_env_int("MAX_UPLOAD_MB", 20, 1, 200),
+        max_questions=_env_int("MAX_QUESTIONS", 50, 1, 500),
+        ragas_enabled=_env_bool("RAGAS_ENABLED", True),
+    )
