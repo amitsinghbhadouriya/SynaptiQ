@@ -138,3 +138,73 @@ def build_state(ws: Workspace, selected_run_id: str | None = None) -> dict[str, 
         if partner is None:
             partner = next((r for r in completed if r.document_id == selected.document_id
                             and r.created_at < selected.created_at), None)
+        if partner is not None:
+            try:
+                comparison = ws.compare(partner.run_id, selected.run_id, strict=False)
+                comparison_chart = charts.comparison_figure(comparison)
+            except (IncompatibleRuns, NotFound) as exc:
+                comparison = {"error": str(exc)}
+
+    doc_runs = [r for r in completed if not selected or r.document_id == selected.document_id]
+    today = datetime.now(timezone.utc).date().isoformat()
+    evaluated_today = sum(r.summary.get("questions", 0) for r in completed if r.created_at[:10] == today)
+
+    return to_jsonable({
+        "status": ws.status(),
+        "documents": doc_views,
+        "focus_document_id": focus_doc,
+        "questions": question_views,
+        "runs": [_run_view(r, filenames) for r in runs[:60]],
+        "selected_run_id": selected.run_id if selected else None,
+        "results": results_view,
+        "funnel": funnel,
+        "comparison": comparison,
+        "evaluated_today": evaluated_today,
+        "charts": {
+            "trend": charts.trend_figures(doc_runs) if doc_runs else None,
+            "modes": charts.mode_trend_figure(doc_runs) if doc_runs else None,
+            "runs_bar": charts.runs_bar_figure(doc_runs, selected.run_id if selected else None) if doc_runs else None,
+            "donut": donut,
+            "comparison": comparison_chart,
+        },
+        "defaults": {"config": ws.default_config().to_dict(), "embedding_models": EMBEDDING_CHOICES,
+                     "max_questions": ws.settings.max_questions},
+        "labels": LABELS,
+        "progress": ws.progress,
+    })
+
+
+def _decode_file(item: dict[str, Any]) -> tuple[str, bytes]:
+    data = item.get("data") or ""
+    if "," in data and data.startswith("data:"):
+        data = data.split(",", 1)[1]
+    try:
+        return str(item.get("name") or "upload"), base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("The uploaded file could not be decoded.") from exc
+
+
+def handle_event(ws: Workspace, event: dict[str, Any]) -> dict[str, Any]:
+    """Apply one dashboard action. Returns {"notice", "selected_run_id"?, "download"?, "navigate"?}."""
+    kind = event.get("type")
+    nonce = event.get("nonce")
+    out: dict[str, Any] = {"nonce": nonce}
+
+    def notice(level: str, message: str) -> dict[str, Any]:
+        out["notice"] = {"level": level, "message": message, "nonce": nonce}
+        return out
+
+    try:
+        if kind == "upload":
+            created, reused, errors = [], [], []
+            for item in event.get("files", []):
+                try:
+                    name, data = _decode_file(item)
+                    document, is_new = ws.ingest(name, data)
+                    (created if is_new else reused).append(document.filename)
+                except DocumentLoadError as exc:
+                    errors.append(f"{item.get('name')}: {exc.message}")
+            if errors and not created and not reused:
+                return notice("error", " ".join(errors))
+            parts = []
+            if created:
