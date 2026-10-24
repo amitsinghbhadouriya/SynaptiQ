@@ -78,3 +78,43 @@ export default function Navbar({ onLaunch }) {
             type="button"
             className="nav__mobile-toggle"
             onClick={() => setMobileOpen(prev => !prev)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </nav>
+
+      {mobileOpen && (
+        <div className="nav__mobile-menu">
+          <ul className="nav__mobile-links">
+            {LINKS.map(link => (
+              <li key={link.id}>
+                <button
+                  type="button"
+                  className="nav__mobile-link-btn"
+                  onClick={() => handleNavClick(link.id)}
+                >
+                  {link.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="nav__mobile-action">
+            <CtaButton
+              size="md"
+              onClick={() => {
+                setMobileOpen(false);
+                onLaunch();
+              }}
+              style={{ width: '100%' }}
+            >
+              Launch Dashboard →
+            </CtaButton>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
