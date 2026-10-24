@@ -64,3 +64,36 @@
         "Working from another country is limited to a maximum of 30 working days per calendar year.",
         "Any stay abroad longer than 10 consecutive working days must be approved in advance by the employee's manager and the People Operations team."
       ]
+    },
+    {
+      "question": "Within how many days do expense claims need to be filed?",
+      "reference_answer": "Claims must be submitted within 30 days of the expense date.",
+      "question_type": "numerical",
+      "evidence_quotes": ["Claims must be submitted within 30 days of the expense date; claims submitted later are reviewed case by case and may be declined."]
+    },
+    {
+      "question": "Where do I send a phishing email that asks for my password?",
+      "reference_answer": "Forward it to security@lumenlabs.example and then delete it.",
+      "question_type": "factual",
+      "evidence_quotes": ["Suspicious messages that ask for credentials or payment details must be forwarded to security@lumenlabs.example and then deleted."]
+    },
+    {
+      "question": "How much does Lumen Labs match on retirement contributions?",
+      "reference_answer": "Lumen Labs matches retirement plan contributions up to 5 percent of base salary.",
+      "question_type": "numerical",
+      "evidence_quotes": ["Lumen Labs matches retirement plan contributions up to 5 percent of base salary."]
+    },
+    {
+      "question": "Does Lumen Labs pay salaries in cryptocurrency?",
+      "reference_answer": "The handbook does not contain this information.",
+      "question_type": "unanswerable",
+      "evidence_quotes": []
+    },
+    {
+      "question": "How many parking spaces are reserved for visitors at the office?",
+      "reference_answer": "The handbook does not contain this information.",
+      "question_type": "unanswerable",
+      "evidence_quotes": []
+    }
+  ]
+}
