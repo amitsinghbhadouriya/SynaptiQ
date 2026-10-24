@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv_broken/
+venv/
+.pytest_cache/
+
+# Secrets and local data
+.env
+storage/
