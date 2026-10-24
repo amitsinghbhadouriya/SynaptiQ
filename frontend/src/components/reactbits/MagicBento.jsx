@@ -903,3 +903,230 @@ const MagicBento = ({
       let order = 0;
       cellRefs.current.forEach(cell => {
         if (!cell) return;
+        cell.style.setProperty('--mb-delay', `${order++ * STAGGER}ms`);
+        cell.dataset.state = 'in';
+      });
+      if (dirty) measure();
+      introTimer = window.setTimeout(() => {
+        if (bounds) startWave(bounds.left, bounds.top, 1.7);
+        wake();
+      }, 260);
+      settleTimer = window.setTimeout(
+        () => {
+          cellRefs.current.forEach(cell => cell?.style.setProperty('--mb-delay', '0ms'));
+        },
+        order * STAGGER + 2600
+      );
+      wake();
+    };
+
+    let gate = null;
+    if (playIntro && typeof IntersectionObserver !== 'undefined') {
+      gate = new IntersectionObserver(
+        (entries, observer) => {
+          if (!entries.some(entry => entry.isIntersecting)) return;
+          observer.disconnect();
+          enter();
+        },
+        { threshold: 0.15 }
+      );
+      gate.observe(root);
+    } else {
+      cellRefs.current.forEach(cell => {
+        if (!cell) return;
+        cell.style.setProperty('--mb-delay', '0ms');
+        cell.dataset.state = 'in';
+      });
+      if (motion) {
+        for (const animation of root.getAnimations ? root.getAnimations({ subtree: true }) : []) {
+          if (REPLAY.has(nameOf(animation)) && finite(animation)) animation.finish();
+        }
+      }
+    }
+
+    const visibility = new IntersectionObserver(entries => {
+      visible = entries.some(entry => entry.isIntersecting);
+      if (visible) {
+        dirty = true;
+        wake();
+      }
+    });
+    visibility.observe(root);
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointerup', release, { passive: true });
+    window.addEventListener('pointercancel', release, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    document.addEventListener('pointerout', onPointerOut);
+    root.addEventListener('click', onClick);
+    root.addEventListener('keydown', onKeyDown);
+
+    engineRef.current = {
+      sync: () => {
+        cellRefs.current.forEach(cell => {
+          if (!cell || (!entered && playIntro)) return;
+          if (cell.dataset.state !== 'in') {
+            cell.style.setProperty('--mb-delay', '0ms');
+            cell.dataset.state = 'in';
+          }
+        });
+        dirty = true;
+        wake();
+      }
+    };
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(introTimer);
+      gate?.disconnect();
+      visibility.disconnect();
+      resizeObserver.disconnect();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('resize', onScroll);
+      document.removeEventListener('pointerout', onPointerOut);
+      root.removeEventListener('click', onClick);
+      root.removeEventListener('keydown', onKeyDown);
+      engineRef.current = null;
+    };
+  }, []);
+
+  useIsomorphicLayoutEffect(() => {
+    engineRef.current?.sync();
+  }, [items, cols, rowHeight, gap, radius, enableStars, enableSpotlight, enableBorderGlow]);
+
+  const ink = INK[palette];
+  const accent = parseRgb(glowColor) ?? ink;
+  const corner = Math.max(0, radius);
+  const span = Math.max(1, cols);
+
+  cellRefs.current.length = items.length;
+  cardRefs.current.length = items.length;
+  starRefs.current.length = items.length;
+
+  return (
+    <div
+      ref={rootRef}
+      className={`magic-bento ${className}`.trim()}
+      data-autohide={textAutoHide ? '' : undefined}
+      data-motion={disableAnimations ? undefined : ''}
+      data-intro={intro && !disableAnimations ? '' : undefined}
+      style={{
+        ...vars({
+          ...THEMES[palette],
+          '--mb-glow-rgb': glow.join(', '),
+          '--mb-accent-rgb': accent.join(', '),
+          '--mb-accent-ink': inkFor(accent),
+          '--mb-radius': `${corner}px`,
+          '--mb-inner-radius': `${Math.round(clamp(corner * 0.5, 6, 12))}px`,
+          '--mb-pad': `${Math.round(clamp(corner * 0.85, 14, 20))}px`,
+          '--mb-spot-size': `${Math.max(40, spotlightRadius)}px`,
+          '--mb-border-size': `${Math.round(Math.max(40, spotlightRadius) * 0.75)}px`
+        }),
+        gridTemplateColumns: `repeat(${span}, minmax(0, 1fr))`,
+        gridAutoRows: span === 1 ? `minmax(${rowHeight}px, auto)` : `${rowHeight}px`,
+        gap: `${Math.max(0, gap)}px`,
+        ...style
+      }}
+    >
+      {items.map((item, index) => {
+        const entry = item ?? {};
+        const Visual = typeof entry.visual === 'string' ? VISUALS[entry.visual] : null;
+        const visual = Visual ? <Visual /> : typeof entry.visual === 'string' ? null : entry.visual;
+        const clickable = Boolean(entry.href || entry.onClick || onItemClick);
+        const handleClick = event => {
+          entry.onClick?.(event);
+          onItemClick?.(entry, index);
+        };
+        const cardProps = {
+          ref: element => {
+            cardRefs.current[index] = element;
+          },
+          className: 'magic-bento__card',
+          'data-clickable': clickable ? '' : undefined,
+          'data-image': entry.image ? '' : undefined,
+          onClick: clickable ? handleClick : undefined
+        };
+        const body = (
+          <>
+            {entry.image && <img className="magic-bento__image" src={entry.image} alt="" draggable={false} />}
+            {entry.image && <span className="magic-bento__scrim" />}
+            {enableSpotlight && <span className="magic-bento__light" />}
+            {enableStars && (
+              <canvas
+                ref={element => {
+                  starRefs.current[index] = element;
+                }}
+                className="magic-bento__stars"
+                aria-hidden="true"
+              />
+            )}
+            <div className="magic-bento__content">
+              {entry.content ?? (
+                <>
+                  {(entry.icon || entry.label) && (
+                    <div className="magic-bento__header">
+                      {entry.icon && <span className="magic-bento__icon">{entry.icon}</span>}
+                      {entry.label && <span className="magic-bento__label">{entry.label}</span>}
+                    </div>
+                  )}
+                  {visual && (
+                    <div className="magic-bento__visual" aria-hidden="true">
+                      {visual}
+                    </div>
+                  )}
+                  {(entry.title || entry.description) && (
+                    <div className="magic-bento__text">
+                      {entry.title && <h3 className="magic-bento__title">{entry.title}</h3>}
+                      {entry.description && <p className="magic-bento__description">{entry.description}</p>}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <span className="magic-bento__rim" />
+            <span className="magic-bento__border" />
+          </>
+        );
+
+        return (
+          <div
+            key={entry.id ?? index}
+            ref={element => {
+              cellRefs.current[index] = element;
+            }}
+            className="magic-bento__cell"
+            style={{
+              gridColumn: `span ${Math.min(span, Math.max(1, Math.round(entry.colSpan ?? 1)))}`,
+              gridRow: `span ${Math.max(1, Math.round(entry.rowSpan ?? 1))}`
+            }}
+          >
+            {entry.href ? (
+              <a {...cardProps} href={entry.href} target={entry.target} rel={entry.rel}>
+                {body}
+              </a>
+            ) : (
+              <div
+                {...cardProps}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                aria-label={clickable ? entry.title : undefined}
+              >
+                {body}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+export default MagicBento;
+
