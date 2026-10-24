@@ -44,3 +44,50 @@ export const MODES = [
 
 export const FEATURES = [
   {
+    key: 'ingest',
+    title: 'Document ingestion',
+    short: 'Ingestion',
+    body: 'Upload PDF, DOCX or TXT. SynaptiQ extracts the text, keeps filenames, pages and headings, and reports clear errors for empty, scanned or damaged files.',
+    points: ['PyMuPDF for PDF pages', 'python-docx for headings and tables', 'Size and type validation']
+  },
+  {
+    key: 'chunk',
+    title: 'Chunking & vector index',
+    short: 'Indexing',
+    body: 'Sentence-aware chunks with configurable size and overlap, stable IDs and exact character offsets, embedded with Sentence Transformers and stored in ChromaDB.',
+    points: ['Stable, reproducible chunk IDs', 'Offsets link chunks to evidence', 'Index reused per configuration']
+  },
+  {
+    key: 'tests',
+    title: 'Synthetic test sets',
+    short: 'Test sets',
+    body: 'Generate factual, numerical, multi-hop and unanswerable questions with reference answers and evidence spans — then review them before they count.',
+    points: ['Evidence located in the source', 'Human review: approve or reject', 'Import your own reviewed sets']
+  },
+  {
+    key: 'modes',
+    title: 'Three-mode evaluation',
+    short: 'Three modes',
+    body: 'Retriever-only, generator-only with reference evidence, and end-to-end tests run as separate modes with a common result schema.',
+    points: ['Hit@k, recall, precision, MRR', 'Correctness, faithfulness, relevancy', 'Abstention on unanswerable questions']
+  },
+  {
+    key: 'evidence',
+    title: 'Evidence inspection',
+    short: 'Evidence',
+    body: 'For every question see the reference answer, the supporting passage, each retrieved chunk with its rank and whether it contains the evidence, and the generated answers.',
+    points: ['Per-chunk evidence coverage', 'Answers from both generation modes', 'Latency and cost when measured']
+  },
+  {
+    key: 'diagnose',
+    title: 'Root-cause report',
+    short: 'Diagnosis',
+    body: 'Transparent rules classify each question as a retrieval, generation, combined or pipeline failure, correct-but-ungrounded, or needs review — with the reason shown.',
+    points: ['Three-state inputs, never guessed', 'Rationale and next action', 'Uncertain when evidence is thin']
+  },
+  {
+    key: 'recommend',
+    title: 'Fix recommendations',
+    short: 'Recommendations',
+    body: 'Diagnoses become concrete experiments: the exact rank of missing evidence suggests a top-k, partial coverage suggests chunking, over-abstention suggests a threshold.',
+    points: ['One change at a time', 'Hypotheses, not promises', 'One click to test it']
