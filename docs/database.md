@@ -102,3 +102,56 @@ CREATE TABLE evaluation_runs (
     duration_ms        INTEGER,
     summary_json       TEXT NOT NULL DEFAULT '{}', -- Pass rate, mean latency
     label              TEXT NOT NULL DEFAULT '',   -- "Baseline" or "Candidate: top-k=2"
+    parent_run_id      TEXT,              -- If this run was spawned by a recommendation
+    error              TEXT
+);
+```
+
+### Table 5: `evaluation_results`
+Stores detailed per-question test results for every mode.
+```sql
+CREATE TABLE evaluation_results (
+    result_id           TEXT PRIMARY KEY,
+    run_id              TEXT NOT NULL REFERENCES evaluation_runs(run_id) ON DELETE CASCADE,
+    question_id         TEXT NOT NULL,
+    mode                TEXT NOT NULL,    -- retriever, generator, or end_to_end
+    passed              INTEGER,          -- 1 = True, 0 = False, NULL = Not measured
+    retrieved_json      TEXT NOT NULL DEFAULT '[]', -- Chunks returned & rank
+    generated_answer    TEXT,
+    contexts_json       TEXT NOT NULL DEFAULT '[]',
+    metrics_json        TEXT NOT NULL DEFAULT '{}', -- Hit@k, recall, precision, etc.
+    diagnosis           TEXT NOT NULL,    -- e.g. "LIKELY_RETRIEVAL_FAILURE"
+    diagnosis_label     TEXT NOT NULL,    -- e.g. "Retrieval failure"
+    diagnosis_reason    TEXT NOT NULL,
+    evidence_notes_json TEXT NOT NULL DEFAULT '[]',
+    recommendation_json TEXT,             -- Suggested fix for this question
+    latency_ms          INTEGER,
+    estimated_cost      REAL,
+    error               TEXT
+);
+CREATE INDEX idx_results_run ON evaluation_results(run_id);
+```
+
+---
+
+## 3. ChromaDB Vector Store (`backend/vector_store.py`)
+
+ChromaDB runs locally without needing an external cloud service or Docker container:
+- **Storage Location**: Stored on disk under `./storage/chroma/`.
+- **Collections**: Each document is assigned its own Chroma collection named `doc_<document_id>`.
+- **Index Reuse Optimization**: Generating embeddings is computationally expensive. SynaptiQ computes a unique `index_key` for every configuration:
+  $$\text{index\_key} = \text{SHA1}(\text{backend} + \text{model} + \text{chunk\_size} + \text{chunk\_overlap})[:10]$$
+  If you test a new question set with the same chunking and embedding settings, SynaptiQ reuses the existing vectors in seconds instead of recomputing them.
+- **In-Memory Fallback**: When running automated unit tests or in environments without ChromaDB installed, SynaptiQ includes an in-memory NumPy cosine similarity fallback (`InMemoryVectorStore`).
+
+---
+
+## 4. Single-Process Protection (`backend/process_lock.py`)
+
+Because SQLite and ChromaDB open file handles on local disks, running two servers (such as Streamlit and FastAPI simultaneously) against the same directory could cause file corruption.
+
+To prevent this:
+1. When SynaptiQ starts, it creates a lock file at `./storage/synaptiq.lock`.
+2. If another process attempts to start using the same storage path, it immediately aborts with a clear, helpful message:
+   `"Another SynaptiQ process is already using ./storage. Stop it or configure a separate DB_PATH and CHROMA_PATH."`
+3. When the server shuts down, the lock is cleanly released.
