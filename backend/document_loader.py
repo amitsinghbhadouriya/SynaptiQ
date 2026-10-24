@@ -116,3 +116,63 @@ def _load_txt(data: bytes) -> tuple[list[tuple[str, int | None, str | None]], di
     if b"\x00" in data[:4096]:
         raise DocumentLoadError("invalid_content", "The file looks binary, not plain text.")
     for encoding in ("utf-8-sig", "utf-16") if data[:2] in (b"\xff\xfe", b"\xfe\xff") else ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            text = data.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:  # pragma: no cover - latin-1 always decodes
+        raise DocumentLoadError("decode_failed", "The text file encoding could not be detected.")
+
+    # Treat markdown-style headings or ALL-CAPS lines as section boundaries.
+    parts: list[tuple[str, int | None, str | None]] = []
+    heading = "Document"
+    buffer: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        is_heading = stripped.startswith("#") or (
+            4 <= len(stripped) <= 80 and stripped.isupper() and any(c.isalpha() for c in stripped)
+        )
+        if is_heading:
+            if any(b.strip() for b in buffer):
+                parts.append(("\n".join(buffer), None, heading))
+            buffer = []
+            heading = stripped.lstrip("#").strip()[:80] or heading
+        buffer.append(line.lstrip("#").strip() if is_heading else line)
+    if any(b.strip() for b in buffer):
+        parts.append(("\n".join(buffer), None, heading))
+    return parts, {"encoding": encoding}
+
+
+def load_document(filename: str, data: bytes, max_upload_mb: int = 20) -> LoadedDocument:
+    """Validate and parse an uploaded file."""
+    name = _safe_name(filename)
+    suffix = Path(name).suffix.lower()
+    if suffix not in SUPPORTED_TYPES:
+        raise DocumentLoadError(
+            "unsupported_type", f"Unsupported file type '{suffix or 'none'}'. Upload a PDF, DOCX or TXT file."
+        )
+    if not data:
+        raise DocumentLoadError("empty_file", "The file is empty.")
+    if len(data) > max_upload_mb * 1024 * 1024:
+        raise DocumentLoadError("too_large", f"The file is larger than the {max_upload_mb} MB limit.")
+
+    file_type = SUPPORTED_TYPES[suffix]
+    loader = {"PDF": _load_pdf, "DOCX": _load_docx, "TXT": _load_txt}[file_type]
+    parts, meta = loader(data)
+    text, sections = _assemble(parts)
+    if not text.strip():
+        hint = " Scanned PDFs need OCR, which is outside the current scope." if file_type == "PDF" else ""
+        raise DocumentLoadError("no_text", f"No extractable text was found in the file.{hint}")
+
+    meta.update({"sections": [s.__dict__ for s in sections], "section_count": len(sections), "bytes": len(data)})
+    if file_type == "PDF":
+        meta["pages_with_text"] = len({s.page_number for s in sections})
+    return LoadedDocument(
+        filename=name,
+        file_type=file_type,
+        content_hash=hashlib.sha256(data).hexdigest(),
+        text=text,
+        sections=sections,
+        metadata=meta,
+    )
