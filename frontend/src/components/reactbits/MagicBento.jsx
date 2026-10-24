@@ -450,3 +450,230 @@ const REPLAY = new Set([
   'magic-bento-switch-track',
   'magic-bento-switch-knob'
 ]);
+
+const FLOW = new Set([
+  'magic-bento-wait',
+  'magic-bento-run',
+  'magic-bento-check',
+  'magic-bento-rail',
+  'magic-bento-fade'
+]);
+
+const finite = animation => {
+  const timing = animation.effect?.getTiming?.();
+  return timing ? timing.iterations !== Infinity : false;
+};
+
+const nameOf = animation => animation.animationName || '';
+
+const MagicBento = ({
+  items = DEFAULT_ITEMS,
+  columns = 4,
+  rowHeight = 200,
+  gap = 12,
+  radius = 20,
+  theme = 'dark',
+  glowColor,
+  textAutoHide = true,
+  enableBorderGlow = true,
+  enableSpotlight = true,
+  spotlightRadius = 300,
+  enableStars = false,
+  particleCount = 24,
+  enableTilt = false,
+  enableMagnetism = false,
+  clickEffect = true,
+  intro = true,
+  disableAnimations = false,
+  onItemClick,
+  className = '',
+  style
+}) => {
+  const rootRef = useRef(null);
+  const cellRefs = useRef([]);
+  const cardRefs = useRef([]);
+  const starRefs = useRef([]);
+  const engineRef = useRef(null);
+  const [cols, setCols] = useState(Math.max(1, Math.round(columns)));
+
+  const palette = theme === 'light' ? 'light' : 'dark';
+  const glow = parseRgb(glowColor) ?? INK[palette];
+  const settings = {
+    items,
+    columns: Math.max(1, Math.round(columns)),
+    gap: Math.max(0, gap),
+    enableBorderGlow,
+    enableSpotlight,
+    spotlightRadius: Math.max(40, spotlightRadius),
+    enableStars,
+    particleCount: clamp(Math.round(particleCount), 0, 120),
+    enableTilt,
+    enableMagnetism,
+    clickEffect,
+    intro,
+    disableAnimations,
+    onItemClick,
+    glow
+  };
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  useIsomorphicLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const motion = !settingsRef.current.disableAnimations && !reduced;
+    const playIntro = motion && settingsRef.current.intro;
+    if (motion) root.dataset.motion = '';
+    else delete root.dataset.motion;
+    if (playIntro) root.dataset.intro = '';
+    else delete root.dataset.intro;
+
+    const pointer = { x: -1e5, y: -1e5, inside: false, down: -1 };
+    const light = { x: -1e5, y: -1e5, near: 0, ready: false };
+    const states = [];
+    const wave = { x: 0, y: 0, t: -1, duration: 1.1, reach: 800 };
+    let rects = [];
+    let bounds = null;
+    let dirty = true;
+    let raf = 0;
+    let last = 0;
+    let visible = true;
+    let entered = !playIntro;
+    let settleTimer = 0;
+    let introTimer = 0;
+    const lastFlow = [];
+
+    const stateFor = index => {
+      if (!states[index]) {
+        states[index] = {
+          hot: 0,
+          rx: 0,
+          ry: 0,
+          tx: 0,
+          ty: 0,
+          vrx: 0,
+          vry: 0,
+          vtx: 0,
+          vty: 0,
+          press: 1,
+          vpress: 0,
+          stars: 0,
+          particles: null,
+          active: false,
+          written: {}
+        };
+      }
+      return states[index];
+    };
+
+    const write = (element, state, name, value) => {
+      if (state.written[name] === value) return;
+      state.written[name] = value;
+      element.style.setProperty(name, value);
+    };
+
+    const measure = () => {
+      dirty = false;
+      bounds = root.getBoundingClientRect();
+      rects = cellRefs.current.map(cell => (cell ? cell.getBoundingClientRect() : null));
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      starRefs.current.forEach((canvas, index) => {
+        const rect = rects[index];
+        if (!canvas || !rect) return;
+        const width = Math.max(1, Math.round(rect.width * ratio));
+        const height = Math.max(1, Math.round(rect.height * ratio));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+      });
+    };
+
+    const seed = (index, rect) => {
+      const count = settingsRef.current.particleCount;
+      const state = stateFor(index);
+      if (state.particles && state.particles.length === count) return state.particles;
+      state.particles = Array.from({ length: count }, () => ({
+        x: Math.random() * rect.width,
+        y: Math.random() * rect.height,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -4 - Math.random() * 10,
+        size: 0.6 + Math.random() * 1.1,
+        phase: Math.random() * Math.PI * 2,
+        rate: 1.2 + Math.random() * 2.4
+      }));
+      return state.particles;
+    };
+
+    const drawStars = (index, rect, state, lx, ly, dt, now) => {
+      const canvas = starRefs.current[index];
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      const ratio = canvas.width / Math.max(1, rect.width);
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.stars < 0.004) return;
+      const s = settingsRef.current;
+      const particles = seed(index, rect);
+      const reach = s.spotlightRadius * 0.75;
+      const [r, g, b] = s.glow;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      for (const particle of particles) {
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        if (particle.y < -4) {
+          particle.y = rect.height + 4;
+          particle.x = Math.random() * rect.width;
+        }
+        if (particle.x < -4) particle.x = rect.width + 4;
+        if (particle.x > rect.width + 4) particle.x = -4;
+        const distance = Math.hypot(particle.x - lx, particle.y - ly) / reach;
+        if (distance >= 1) continue;
+        const falloff = 1 - distance * distance * (3 - 2 * distance);
+        const twinkle = 0.55 + 0.45 * Math.sin(now * 0.001 * particle.rate + particle.phase);
+        const alpha = state.stars * falloff * twinkle;
+        if (alpha < 0.01) continue;
+        context.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
+        context.beginPath();
+        context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        context.fill();
+      }
+    };
+
+    const replay = (card, filter) => {
+      if (!motion || !card.getAnimations) return;
+      for (const animation of card.getAnimations({ subtree: true })) {
+        if (!filter.has(nameOf(animation)) || !finite(animation)) continue;
+        const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
+        if (target instanceof Element && target.classList.contains('magic-bento__cursor')) continue;
+        animation.currentTime = 0;
+        animation.play();
+      }
+    };
+
+    const startWave = (x, y, duration) => {
+      if (!motion || !bounds) return;
+      wave.x = x;
+      wave.y = y;
+      wave.t = 0;
+      wave.duration = duration;
+      wave.reach =
+        Math.max(
+          Math.hypot(x - bounds.left, y - bounds.top),
+          Math.hypot(x - bounds.right, y - bounds.top),
+          Math.hypot(x - bounds.left, y - bounds.bottom),
+          Math.hypot(x - bounds.right, y - bounds.bottom)
+        ) + 140;
+    };
+
+    const frame = now => {
+      raf = 0;
+      const dt = Math.min(0.05, (now - last) / 1000 || 0);
+      last = now;
+      if (dirty) measure();
+      const s = settingsRef.current;
+      const cards = cardRefs.current;
+      let busy = false;
