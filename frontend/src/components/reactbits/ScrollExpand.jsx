@@ -68,3 +68,74 @@ const ScrollExpand = ({
     const c = propsRef.current;
 
     const e = smoothstep(0, 1, p);
+
+    const w = c.startWidth + (100 - c.startWidth) * e;
+    const h = c.startHeight + (100 - c.startHeight) * e;
+    const ix = Math.max(0, (100 - w) / 2);
+    const iy = Math.max(0, (100 - h) / 2);
+    const r = c.startRadius + (c.endRadius - c.startRadius) * e;
+
+    if (e >= 0.99) {
+      frame.style.clipPath = 'none';
+    } else {
+      frame.style.clipPath = `inset(${iy}% ${ix}% ${iy}% ${ix}% round ${r}px)`;
+    }
+
+    media.style.transform = `scale(${c.mediaZoom + (1 - c.mediaZoom) * e})`;
+    // change 1: darkens the image + adds blur
+    media.style.filter = e > 0.05 ? `blur(${(e * 6).toFixed(1)}px)` : 'none';
+
+    if (scrimRef.current) scrimRef.current.style.opacity = `${c.overlayScrim * e}`;
+
+    // title fades out between 40% and 88%
+    if (titleRef.current) {
+      const out = smoothstep(0.4, 0.88, p);
+      titleRef.current.style.opacity = `${1 - out}`;
+      titleRef.current.style.transform = `translate3d(0, ${-28 * out}px, 0) scale(${1 + 0.06 * out})`;
+    }
+
+    if (hintRef.current) {
+      const gone = smoothstep(0, 0.15, p);
+      hintRef.current.style.opacity = `${1 - gone}`;
+      hintRef.current.style.transform = `translate3d(0, ${8 * gone}px, 0)`;
+    }
+
+    // overlay fades in from 68% — change 3: fades out smoothly at end of hold for smooth handoff
+    if (overlayRef.current) {
+      const enter = smoothstep(0.68, 1, p);
+      const exitFade = exit > 0 ? smoothstep(0.65, 1, exit) : 0;
+      const opacity = enter * (1 - exitFade);
+      overlayRef.current.style.opacity = `${opacity}`;
+      overlayRef.current.style.transform = `translate3d(0, ${(18 * (1 - enter) - 20 * exitFade).toFixed(1)}px, 0)`;
+      overlayRef.current.style.pointerEvents = opacity > 0.2 ? 'auto' : 'none';
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const track = trackRef.current;
+    const stage = stageRef.current;
+    if (!root || !track || !stage) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let raf = 0;
+    let current = { p: 0, exit: 0 };
+    let target = { p: 0, exit: 0 };
+    let stageH = 0;
+    let running = false;
+
+    const measure = () => {
+      const c = propsRef.current;
+      stageH = c.fixedHeight ? c.fixedHeight : (c.useWindowScroll ? window.innerHeight : root.clientHeight);
+      if (stageH <= 0) return;
+      stage.style.height = `${stageH}px`;
+      if (c.fixedHeight) {
+        track.style.height = `${c.fixedHeight}px`;
+      } else {
+        track.style.height = `${stageH * (1 + Math.max(0, c.scrollDistance) + Math.max(0, c.holdDistance))}px`;
+      }
+
+      const w = root.clientWidth || stageH;
+      stage.style.setProperty('--se-title-size', `${clamp(w * 0.075, 20, 84)}px`);
+      try {
