@@ -28,3 +28,33 @@ const useNarrow = () => {
   const [narrow, setNarrow] = useState(() => window.innerWidth < 900);
   useEffect(() => {
     const onResize = () => setNarrow(window.innerWidth < 900);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return narrow;
+};
+
+// React Bits AccordionGallery with dedicated high-resolution visual artwork for each key feature card.
+// All animations (GSAP expandRatio, parallax, tilt, duration, and hover triggers) are strictly preserved.
+export default function Features() {
+  const narrow = useNarrow();
+  const items = FEATURES.map((feature, index) => ({
+    label: feature.title,
+    cursorLabel: feature.short,
+    image: FEATURE_IMAGES[feature.key],
+    collapsedLabel: (
+      <>
+        <span className="feature-collapsed__num">0{index + 1}</span> {feature.short}
+      </>
+    ),
+    content: (
+      <span className="feature-copy">
+        <span className="feature-copy__index">0{index + 1} / 0{FEATURES.length}</span>
+        <span className="feature-copy__title">{feature.title}</span>
+        <span className="feature-copy__body">{feature.body}</span>
+        <span className="feature-copy__points">
+          {feature.points.map(point => (
+            <span key={point} className="feature-copy__point">
+              {point}
+            </span>
+          ))}
