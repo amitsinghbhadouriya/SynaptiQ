@@ -84,3 +84,46 @@ export const ILLUSTRATIONS = {
       <rect x="90" y="120" width="220" height="330" rx="14" fill={F} />
       {lines(114, 156, [170, 150, 172])}
       <rect x="106" y="222" width="188" height="44" rx="8" fill="rgba(57,135,229,0.14)" stroke={A} />
+      {lines(118, 240, [160, 120], 14)}
+      {lines(114, 300, [168, 140, 160, 110])}
+      <circle cx="306" cy="244" r="14" fill="#0d0f15" stroke={A} />
+      <path d="M299 244l5 5 9-10" stroke={A} strokeWidth="2.2" />
+    </Frame>
+  ),
+  diagnose: (
+    <Frame>
+      <rect x="150" y="120" width="100" height="44" rx="10" stroke={A} />
+      <path d="M200 164v40M200 204h-90v40M200 204h90v40" />
+      <rect x="62" y="244" width="96" height="40" rx="10" fill={F} />
+      <rect x="242" y="244" width="96" height="40" rx="10" fill={F} />
+      <path d="M110 284v40M110 324h-40v36M110 324h40v36M290 284v76" />
+      <rect x="40" y="360" width="60" height="34" rx="8" stroke={A} fill="rgba(57,135,229,0.12)" />
+      <rect x="120" y="360" width="60" height="34" rx="8" fill={F} />
+      <rect x="260" y="360" width="60" height="34" rx="8" fill={F} />
+    </Frame>
+  ),
+  recommend: (
+    <Frame>
+      {['chunk', 'overlap', 'top-k', 'model'].map((label, i) => (
+        <g key={label}>
+          <text x="96" y={150 + i * 80} fill="#9aa1b0" stroke="none" fontSize="14" fontFamily="Inter, sans-serif">{label}</text>
+          <path d={`M96 ${170 + i * 80}h208`} />
+          <path d={`M96 ${170 + i * 80}h${[90, 60, 150, 110][i]}`} stroke={i === 2 ? A : 'rgba(255,255,255,0.45)'} strokeWidth="3" />
+          <circle cx={96 + [90, 60, 150, 110][i]} cy={170 + i * 80} r="8" fill="#0d0f15" stroke={i === 2 ? A : 'rgba(255,255,255,0.6)'} strokeWidth="2" />
+        </g>
+      ))}
+    </Frame>
+  ),
+  compare: (
+    <Frame>
+      <path d="M86 450h228" />
+      {[0, 1, 2, 3].map(i => (
+        <g key={i}>
+          <rect x={100 + i * 54} y={450 - [150, 120, 170, 100][i]} width="18" height={[150, 120, 170, 100][i]} rx="4" fill="rgba(255,255,255,0.14)" stroke="none" />
+          <rect x={120 + i * 54} y={450 - [200, 180, 210, 190][i]} width="18" height={[200, 180, 210, 190][i]} rx="4" fill={A} stroke="none" />
+        </g>
+      ))}
+      <path d="M100 190l70-30 54 12 70-40" stroke={A} />
+    </Frame>
+  )
+};
