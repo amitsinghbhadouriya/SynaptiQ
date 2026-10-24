@@ -213,3 +213,75 @@ export function Gauge({ value, target = 0.8, size = 168 }) {
   const clamp = v => Math.max(0, Math.min(1, v || 0));
   const targetAngle = Math.PI * (1 - clamp(target));
   const tx = 80 + r * Math.cos(targetAngle);
+  const ty = 84 - r * Math.sin(targetAngle);
+  return (
+    <svg className="d-gauge" width={size} height={size * 0.62} viewBox="0 0 160 98" aria-hidden="true">
+      <path d="M16 84a64 64 0 0 1 128 0" className="d-gauge__track" />
+      <path
+        d="M16 84a64 64 0 0 1 128 0"
+        className="d-gauge__value"
+        strokeDasharray={`${length * clamp(animated)} ${length}`}
+      />
+      <circle cx={tx} cy={ty} r="5" className="d-gauge__target" />
+    </svg>
+  );
+}
+
+// ----------------------------------------------------------- plotly chart
+const DARK_SWAP = {
+  '#2a78d6': '#3987e5',
+  '#eb6834': '#d95926',
+  '#1baf7a': '#199e70',
+  '#eda100': '#c98500',
+  '#e87ba4': '#d55181',
+  '#b8bcc6': '#4a4d57',
+  '#9a9ca5': '#6e717b',
+  '#d7e4f6': '#26364f',
+  '#ffffff': '#14161b',
+  '#ececf0': '#24272e',
+  'rgba(42,120,214,0.10)': 'rgba(57,135,229,0.16)'
+};
+
+function themed(figure, theme) {
+  let text = JSON.stringify(figure);
+  if (theme === 'dark') {
+    for (const [from, to] of Object.entries(DARK_SWAP)) text = text.split(from).join(to);
+  }
+  const out = JSON.parse(text);
+  const ink = theme === 'dark' ? '#8b909c' : '#898781';
+  out.layout = {
+    ...out.layout,
+    autosize: true,
+    font: { ...(out.layout?.font || {}), color: ink },
+    hoverlabel: theme === 'dark'
+      ? { bgcolor: '#2a2d35', bordercolor: '#2a2d35', font: { color: '#f4f5f8', size: 12 } }
+      : out.layout?.hoverlabel
+  };
+  delete out.layout.template;
+  return out;
+}
+
+export function PlotlyChart({ figure, theme, height = 260, className = '' }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !figure) return undefined;
+    const fig = themed(figure, theme);
+    Plotly.react(el, fig.data, { ...fig.layout, height: fig.layout.height || height }, {
+      displayModeBar: false,
+      responsive: true,
+      displaylogo: false
+    });
+    const observer = new ResizeObserver(() => Plotly.Plots.resize(el));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [figure, theme, height]);
+  useEffect(() => {
+    const el = ref.current;
+    return () => {
+      if (el) Plotly.purge(el);
+    };
+  }, []);
+  if (!figure) return null;
+  return <div ref={ref} className={`d-plot ${className}`.trim()} style={{ minHeight: height }} />;
+}
