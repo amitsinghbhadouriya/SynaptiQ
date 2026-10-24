@@ -65,3 +65,37 @@ export default function Pipeline() {
             >
               <div className="pipeline-phase__header">
                 <span className="pipeline-phase__tag">{phase.phase}</span>
+                <h3 className="pipeline-phase__title">{phase.name}</h3>
+                <span className="pipeline-phase__badge">
+                  {phase.steps.length} {phase.steps.length === 1 ? 'Step' : 'Steps'}
+                </span>
+              </div>
+
+              <div className="pipeline-phase__steps">
+                {phase.steps.map(step => {
+                  const StepIcon = step.icon;
+                  return (
+                    <div
+                      key={step.num}
+                      className="pipeline-step-card cursor-target"
+                      data-cursor-label={`Step ${step.num}`}
+                    >
+                      <div className="pipeline-step-card__top">
+                        <span className="pipeline-step-card__num">{step.num}</span>
+                        <div className="pipeline-step-card__icon">
+                          <StepIcon size={16} />
+                        </div>
+                      </div>
+                      <h4 className="pipeline-step-card__label">{step.label}</h4>
+                      <p className="pipeline-step-card__hint">{step.hint}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
