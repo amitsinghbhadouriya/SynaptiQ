@@ -76,3 +76,81 @@ export default function Documents({ data, theme, act }) {
             ]}
           />
           <Button variant="primary" theme={theme} icon={FileUp} onClick={act.upload}>
+            Add document
+          </Button>
+        </div>
+      </div>
+
+      <div className="d-kpis">
+        <Kpi icon={FileText} label="Documents" value={docs.length} note="PDF, DOCX and TXT" />
+        <Kpi icon={Layers} label="Chunks indexed" value={totals.chunks} note="at the default chunk settings" />
+        <Kpi icon={FlaskConical} label="Test questions" value={totals.questions} note="excluding rejected questions" />
+        <Kpi icon={Database} label="Evaluation runs" value={totals.runs} note="stored in SQLite history" />
+      </div>
+
+      <Card
+        title="All documents"
+        icon={FileText}
+        actions={
+          <FilterPills
+            label="Filter by type"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: 'All', count: counts.all },
+              { value: 'PDF', label: 'PDF', count: counts.PDF },
+              { value: 'DOCX', label: 'DOCX', count: counts.DOCX },
+              { value: 'TXT', label: 'TXT', count: counts.TXT }
+            ]}
+          />
+        }
+      >
+        {!docs.length ? (
+          <Empty
+            icon={FileUp}
+            title="No documents yet"
+            actions={
+              <>
+                <Button variant="primary" theme={theme} icon={FileUp} onClick={act.upload}>
+                  Upload document
+                </Button>
+                <Button variant="ghost" theme={theme} icon={Sparkles} onClick={act.demo}>
+                  Load demo workspace
+                </Button>
+              </>
+            }
+          >
+            Upload a PDF, DOCX or TXT file (up to {data.status?.limits?.max_upload_mb ?? 20} MB). Scanned PDFs need OCR, which is
+            outside the current scope.
+          </Empty>
+        ) : view === 'table' ? (
+          <div className="d-table-wrap">
+            <table className="d-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th className="num">Sections</th>
+                  <th className="num">Chunks</th>
+                  <th>Test set</th>
+                  <th className="num">Runs</th>
+                  <th className="num">Last pass rate</th>
+                  <th>Added</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map(doc => (
+                  <tr key={doc.document_id}>
+                    <td>
+                      <span className="d-doc">
+                        <FileAvatar type={doc.file_type} />
+                        <span>
+                          <span className="d-cell-strong">{doc.filename}</span>
+                          <span className="d-cell-sub">sha256 {doc.hash}…</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td>
+                      <Badge tone={TYPE_TONE[doc.file_type]}>{doc.file_type}</Badge>
+                    </td>
