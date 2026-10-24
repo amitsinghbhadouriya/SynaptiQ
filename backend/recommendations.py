@@ -47,3 +47,52 @@ def for_question(result: QuestionResult, config: RunConfig) -> dict[str, Any] | 
                 "why": "The evidence is only partly covered — it is likely split across chunk boundaries.",
                 "change": {**_change("chunk_size", new_size, config),
                            "also": {"chunk_overlap": max(config.chunk_overlap, new_size // 6)}},
+            }
+        stronger = STRONGER_EMBEDDINGS.get(config.embedding_model)
+        if stronger:
+            return {
+                "title": "Try a stronger embedding model",
+                "why": "The evidence never appears near the top; the embedding may not capture this vocabulary.",
+                "change": _change("embedding_model", stronger, config),
+            }
+        return {
+            "title": f"Increase top-k from {config.top_k} to {min(20, config.top_k + 4)}",
+            "why": "The evidence is not retrieved; a wider candidate set is the cheapest next test.",
+            "change": _change("top_k", min(20, config.top_k + 4), config),
+        }
+    if code == "LIKELY_GENERATION_FAILURE":
+        answer = (result.modes.get("generator") or result.modes.get("end_to_end"))
+        abstained = bool(answer and answer.metrics.get("abstained"))
+        should_abstain = bool(answer and answer.metrics.get("abstention_correct") == 0.0 and not abstained
+                              and answer.metrics.get("answer_correctness") is None)
+        if should_abstain:
+            if config.llm_provider == "offline":
+                new_threshold = round(min(0.9, config.abstain_threshold + 0.1), 2)
+                return {
+                    "title": f"Raise the abstention threshold to {new_threshold}",
+                    "why": "The question is not answerable from the document, yet the generator answered from "
+                           "loosely related text.",
+                    "change": _change("abstain_threshold", new_threshold, config),
+                }
+            return {
+                "title": "Switch to the strict grounded prompt",
+                "why": "The model answered a question the evidence cannot support instead of declining.",
+                "change": _change("prompt_version", "grounded-strict-v2", config),
+            }
+        if abstained and config.llm_provider == "offline":
+            new_threshold = round(max(0.1, config.abstain_threshold - 0.1), 2)
+            return {
+                "title": f"Lower the abstention threshold to {new_threshold}",
+                "why": "The generator declined although the evidence contained the answer.",
+                "change": _change("abstain_threshold", new_threshold, config),
+            }
+        if config.llm_provider == "offline":
+            return {
+                "title": "Answer with a single best sentence",
+                "why": "Extra sentences diluted or contradicted the supported answer.",
+                "change": _change("max_answer_sentences", 1, config),
+            }
+        return {
+            "title": "Switch to the strict grounded prompt",
+            "why": "The model added claims that are not in the evidence or answered without support.",
+            "change": _change("prompt_version", "grounded-strict-v2", config),
