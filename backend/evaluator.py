@@ -144,3 +144,76 @@ class Evaluator:
         )
         result.recommendation = for_question(result, config) if diagnosis.code != "PASS" else None
         return result
+
+    # ------------------------------------------------------------------- run
+    def run(
+        self, document: Document, questions: list[EvalQuestion], config: RunConfig,
+        modes: list[str] | None = None, progress: ProgressFn | None = None,
+    ) -> tuple[list[QuestionResult], dict]:
+        modes = [m for m in (modes or list(MODES)) if m in MODES]
+        started = time.perf_counter()
+        chunks = self.retriever.ensure_index(document, config)
+        results = []
+        for index, question in enumerate(questions, start=1):
+            if progress:
+                progress(index - 1, len(questions), question.question)
+            results.append(self.evaluate_question(document, config, question, modes))
+        if progress:
+            progress(len(questions), len(questions), "done")
+        summary = summarize(results, questions, config)
+        summary["chunk_count"] = len(chunks)
+        summary["wall_ms"] = int((time.perf_counter() - started) * 1000)
+        return results, summary
+
+
+def summarize(results: list[QuestionResult], questions: list[EvalQuestion], config: RunConfig) -> dict:
+    """Aggregate metrics. Means ignore unmeasured (None) values; counts are reported raw."""
+    by_mode: dict[str, dict] = {}
+    for mode in MODES:
+        mode_results = [r.modes[mode] for r in results if mode in r.modes]
+        if not mode_results:
+            continue
+        measured = [m for m in mode_results if m.passed is not None]
+        latencies = sorted(m.latency_ms for m in mode_results if m.latency_ms is not None)
+        keys = sorted({k for m in mode_results for k in m.metrics})
+        costs = [m.estimated_cost for m in mode_results if m.estimated_cost is not None]
+        by_mode[mode] = {
+            "measured": len(measured),
+            "passed": sum(1 for m in measured if m.passed),
+            "pass_rate": round(sum(1 for m in measured if m.passed) / len(measured), 4) if measured else None,
+            "errors": sum(1 for m in mode_results if m.error),
+            "metrics": {k: M.mean(m.metrics.get(k) for m in mode_results) for k in keys},
+            "latency_ms_avg": round(sum(latencies) / len(latencies)) if latencies else None,
+            "latency_ms_p95": latencies[min(len(latencies) - 1, int(0.95 * len(latencies)))] if latencies else None,
+            "cost_total": round(sum(costs), 6) if costs else None,
+        }
+    diagnoses: dict[str, int] = {}
+    for r in results:
+        diagnoses[r.diagnosis] = diagnoses.get(r.diagnosis, 0) + 1
+    passed = diagnoses.get("PASS", 0)
+    type_counts: dict[str, int] = {}
+    for q in questions:
+        type_counts[q.question_type] = type_counts.get(q.question_type, 0) + 1
+    rec = top_recommendation(results, config)
+    return {
+        "questions": len(results),
+        "passed": passed,
+        "pass_rate": round(passed / len(results), 4) if results else None,
+        "failed": len(results) - passed,
+        "diagnoses": diagnoses,
+        "question_types": type_counts,
+        "modes": by_mode,
+        "headline": {
+            "hit_at_k": by_mode.get("retriever", {}).get("metrics", {}).get("hit_at_k"),
+            "context_recall": by_mode.get("retriever", {}).get("metrics", {}).get("context_recall"),
+            "context_precision": by_mode.get("retriever", {}).get("metrics", {}).get("context_precision"),
+            "faithfulness": by_mode.get("end_to_end", {}).get("metrics", {}).get("faithfulness"),
+            "answer_correctness": by_mode.get("end_to_end", {}).get("metrics", {}).get("answer_correctness"),
+            "answer_relevancy": by_mode.get("end_to_end", {}).get("metrics", {}).get("answer_relevancy"),
+            "abstention_correct": by_mode.get("end_to_end", {}).get("metrics", {}).get("abstention_correct"),
+            "latency_ms_avg": by_mode.get("end_to_end", {}).get("latency_ms_avg"),
+            "cost_total": by_mode.get("end_to_end", {}).get("cost_total"),
+        },
+        "top_recommendation": rec,
+        "thresholds": M.THRESHOLDS,
+    }
