@@ -45,3 +45,51 @@ copy .env.example .env
 
 # 7. Start the SynaptiQ application
 streamlit run app.py
+```
+
+---
+
+## 3. Installation on macOS or Linux
+
+Open your terminal and run:
+
+```bash
+# 1. Navigate to the project root
+cd synaptiq
+
+# 2. Create a virtual environment with Python 3.11 or 3.12
+python3.12 -m venv .venv
+# (or: python3.11 -m venv .venv)
+
+# 3. Activate the virtual environment
+source .venv/bin/activate
+
+# 4. Upgrade pip
+pip install --upgrade pip
+
+# 5. Install all dependencies
+pip install -r requirements.txt
+
+# 6. (Optional) Create your local environment configuration file
+cp .env.example .env
+
+# 7. Start the SynaptiQ application
+streamlit run app.py
+```
+
+---
+
+## 4. Saving Disk Space (CPU-Only PyTorch)
+
+By default, installing PyTorch can download extra GPU drivers (CUDA). If you are running on a standard laptop or CPU-only machine, you can save ~1 GB of download size by installing the CPU wheel first:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+```
+
+---
+
+## 5. How to Launch SynaptiQ
+
+You can run SynaptiQ using either of two commands:
