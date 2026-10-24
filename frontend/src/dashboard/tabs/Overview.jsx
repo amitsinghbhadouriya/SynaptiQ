@@ -117,3 +117,122 @@ function PassedCard({ selected, previous }) {
           </Badge>
         )}
       </div>
+      <p className="ov-note">Retrieval, generation and end-to-end all passed.</p>
+      <div className="ov-split">
+        <div>
+          <span>Retriever-only</span>
+          <strong>{pct(selected.modes?.retriever?.pass_rate)}</strong>
+        </div>
+        <div>
+          <span>Generator-only</span>
+          <strong>{pct(selected.modes?.generator?.pass_rate)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FailuresCard({ selected, previous, labels }) {
+  const entries = Object.entries(selected.diagnoses || {}).filter(([code, n]) => code !== 'PASS' && n > 0);
+  const failing = entries.reduce((sum, [, n]) => sum + n, 0);
+  const prevFailing = previous ? previous.questions - previous.passed : null;
+  return (
+    <div className="ov-card">
+      <Head icon={CircleX} tone="bad" title="Failing" />
+      <div className="ov-value">
+        <CountUp value={failing} />
+        {prevFailing !== null && (
+          <Badge tone={failing <= prevFailing ? 'good' : 'bad'}>
+            {failing - prevFailing > 0 ? '+' : ''}
+            {failing - prevFailing} vs prev
+          </Badge>
+        )}
+      </div>
+      {failing > 0 ? (
+        <>
+          <div className="ov-stack" role="img" aria-label="Failures by diagnosis">
+            {entries.map(([code, n]) => (
+              <span key={code} style={{ flexGrow: n, background: FAILURE_COLORS[code] }} title={`${labels[code]}: ${n}`} />
+            ))}
+          </div>
+          <ul className="ov-legend">
+            {entries.map(([code, n]) => (
+              <li key={code}>
+                <i style={{ background: FAILURE_COLORS[code] }} />
+                {labels[code]} <b>{n}</b>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="ov-note">No failing questions in this run.</p>
+      )}
+    </div>
+  );
+}
+
+function QualityCard({ selected }) {
+  const h = selected.headline || {};
+  const correctness = h.answer_correctness;
+  const rows = [
+    { label: 'Context recall', value: h.context_recall },
+    { label: 'Faithfulness', value: h.faithfulness },
+    { label: 'Answer relevancy', value: h.answer_relevancy },
+    { label: 'Abstention correct', value: h.abstention_correct }
+  ];
+  return (
+    <div className="ov-card ov-quality">
+      <Head icon={Target} title="Quality target" />
+      <div className="ov-quality__panel">
+        <div className="ov-quality__top">
+          <span>End-to-end correctness</span>
+          <span className="ov-quality__target">Target 0.80</span>
+        </div>
+        <div className="ov-quality__gauge">
+          <Gauge value={correctness} target={0.8} />
+          <div className="ov-quality__value">
+            <CountUp value={correctness} format={v => v.toFixed(2)} />
+            <small>{correctness !== null && correctness !== undefined && correctness >= 0.8 ? 'on target' : 'below target'}</small>
+          </div>
+        </div>
+      </div>
+      <ul className="ov-metrics">
+        {rows.map(row => (
+          <li key={row.label}>
+            <span>{row.label}</span>
+            <span className="ov-metrics__num">{num(row.value)}</span>
+            <Progress value={row.value} tone={row.value >= 0.8 ? 'good' : row.value >= 0.6 ? 'accent' : 'bad'} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ChartCard({ charts, theme, runs }) {
+  return (
+    <div className="ov-card ov-chartcard">
+      <Head icon={ListChecks} title="Pass rate by run">
+        <span className="ov-chip">last {Math.min(8, runs.length)} runs</span>
+      </Head>
+      {charts?.runs_bar ? <PlotlyChart figure={charts.runs_bar} theme={theme} height={150} /> : <p className="ov-note">No runs yet.</p>}
+    </div>
+  );
+}
+
+function RecommendationCard({ selected, theme, act }) {
+  const rec = selected.top_recommendation;
+  return (
+    <div className="ov-card ov-rec">
+      <div className="ov-rec__top">
+        <Badge tone="accent">Diagnose → Recommend</Badge>
+        <Lightbulb size={16} aria-hidden="true" className="ov-rec__bulb" />
+      </div>
+      {rec ? (
+        <>
+          <h3 className="ov-rec__title">{rec.title}</h3>
+          <p className="ov-rec__why">{rec.why}</p>
+          <div className="ov-rec__foot">
+            <span className="ov-note">
+              {rec.votes} of {rec.failing} failing
+            </span>
