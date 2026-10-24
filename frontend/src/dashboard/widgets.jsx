@@ -141,3 +141,75 @@ export function Segmented({ options, value, onChange, label, size = 'md' }) {
     </div>
   );
 }
+
+export function FilterPills({ options, value, onChange, label }) {
+  return (
+    <div className="d-pills" role="tablist" aria-label={label}>
+      {options.map(option => (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          aria-selected={option.value === value}
+          className={`d-pill${option.value === value ? ' is-selected' : ''}`}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+          <span className="d-pill__count">{option.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Progress({ value, tone = 'accent' }) {
+  const width = Math.max(0, Math.min(1, value || 0)) * 100;
+  return (
+    <span className="d-progress" role="presentation">
+      <span className={`d-progress__fill d-progress__fill--${tone}`} style={{ width: `${width}%` }} />
+    </span>
+  );
+}
+
+export function Empty({ icon: Icon, title, children, actions }) {
+  return (
+    <div className="d-empty">
+      {Icon && (
+        <span className="d-empty__icon">
+          <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
+        </span>
+      )}
+      <h3>{title}</h3>
+      {children && <p>{children}</p>}
+      {actions && <div className="d-empty__actions">{actions}</div>}
+    </div>
+  );
+}
+
+export function Card({ title, icon: Icon, actions, children, className = '', style }) {
+  return (
+    <section className={`d-card ${className}`.trim()} style={style}>
+      {(title || actions) && (
+        <header className="d-card__head">
+          {Icon && (
+            <span className="d-card__icon">
+              <Icon size={15} strokeWidth={2} aria-hidden="true" />
+            </span>
+          )}
+          {title && <h2 className="d-card__title">{title}</h2>}
+          {actions && <div className="d-card__actions">{actions}</div>}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+
+// ------------------------------------------------------------- gauge
+export function Gauge({ value, target = 0.8, size = 168 }) {
+  const animated = useCountUp(value ?? 0, 1300);
+  const r = 64;
+  const length = Math.PI * r;
+  const clamp = v => Math.max(0, Math.min(1, v || 0));
+  const targetAngle = Math.PI * (1 - clamp(target));
+  const tx = 80 + r * Math.cos(targetAngle);
