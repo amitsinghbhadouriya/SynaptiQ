@@ -93,3 +93,51 @@ function httpBridge(onRender) {
   let error = null;
   const viewFromHash = () => (window.location.hash.startsWith('#/dashboard') ? 'dashboard' : 'landing');
   const emit = (extra = {}) => onRender({ view: viewFromHash(), data, api_error: error, ...extra });
+
+  const load = async () => {
+    try {
+      const response = await fetch('api/v1/ui/state');
+      if (!response.ok) throw await failure(response);
+      data = await response.json();
+      error = null;
+    } catch (exc) {
+      error = `The SynaptiQ API is not available: ${exc.message}`;
+    }
+    emit();
+  };
+
+  window.addEventListener('hashchange', () => emit());
+  emit();
+  load();
+
+  return {
+    mode: 'http',
+    send: async event => {
+      if (event.type === 'navigate') {
+        if (event.page === 'dashboard') window.location.hash = '#/dashboard';
+        else if (event.page === 'home') window.location.hash = '#/';
+        else if (event.page === 'workbench') window.alert('The Workbench page is part of the Streamlit application.');
+        window.scrollTo(0, 0);
+        return;
+      }
+      try {
+        const response = await fetch('api/v1/ui/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...event, selected_run_id: event.selected_run_id ?? data?.selected_run_id })
+        });
+        if (!response.ok) throw await failure(response);
+        data = await response.json();
+        error = null;
+      } catch (exc) {
+        error = `Request failed: ${exc.message}`;
+      }
+      emit();
+    },
+    dispose: () => {}
+  };
+}
+
+export function createBridge(onRender) {
+  return inStreamlit ? streamlitBridge(onRender) : httpBridge(onRender);
+}
