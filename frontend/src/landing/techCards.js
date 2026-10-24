@@ -53,3 +53,58 @@ export const TECH_SYMBOLS = {
   </g>`,
 
   'Sentence Transformers': `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" fill="#ffd21e" fill-opacity="0.15" stroke="#ffd21e" stroke-width="1.5"/>
+      <circle cx="8.5" cy="10" r="1.5" fill="#ffd21e"/>
+      <circle cx="15.5" cy="10" r="1.5" fill="#ffd21e"/>
+      <path d="M8 15s1.5 2.5 4 2.5 4-2.5 4-2.5" stroke="#ffd21e" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M4.5 7.5L7 9.5M19.5 7.5L17 9.5" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </g>`,
+
+  ChromaDB: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10.5" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <circle cx="12" cy="4.5" r="2.5" fill="#f43f5e"/>
+      <circle cx="17.8" cy="7.2" r="2.5" fill="#fb923c"/>
+      <circle cx="19.5" cy="13.2" r="2.5" fill="#facc15"/>
+      <circle cx="15.8" cy="18.5" r="2.5" fill="#4ade80"/>
+      <circle cx="9.2" cy="18.8" r="2.5" fill="#38bdf8"/>
+      <circle cx="4.5" cy="14" r="2.5" fill="#818cf8"/>
+      <circle cx="5.8" cy="7.8" r="2.5" fill="#c084fc"/>
+    </svg>
+  </g>`,
+
+  Ragas: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="#a855f7" stroke-width="1.6" fill="#a855f7" fill-opacity="0.12"/>
+      <circle cx="12" cy="12" r="6" stroke="#c084fc" stroke-width="1.4" stroke-dasharray="2 2"/>
+      <circle cx="12" cy="12" r="2.5" fill="#a855f7"/>
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#c084fc" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </g>`,
+
+  Pandas: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <rect x="3.5" y="9" width="3.5" height="12" rx="1.2" fill="#38bdf8"/>
+      <rect x="8.5" y="4" width="3.5" height="17" rx="1.2" fill="#ff4b4b"/>
+      <rect x="13.5" y="11" width="3.5" height="10" rx="1.2" fill="#eab308"/>
+      <rect x="18.5" y="6" width="3.5" height="15" rx="1.2" fill="#6366f1"/>
+    </svg>
+  </g>`,
+
+  Plotly: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="13" width="4" height="8" rx="1.5" fill="#1f77b4" fill-opacity="0.6"/>
+      <circle cx="5" cy="10" r="2" fill="#38bdf8"/>
+      <rect x="10" y="7" width="4" height="14" rx="1.5" fill="#1f77b4"/>
+      <circle cx="12" cy="4" r="2" fill="#38bdf8"/>
+      <rect x="17" y="10" width="4" height="11" rx="1.5" fill="#1f77b4" fill-opacity="0.6"/>
+      <circle cx="19" cy="7" r="2" fill="#38bdf8"/>
+      <path d="M2 22h20" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </g>`,
+
+  SQLite: `<g transform="translate(42, 42)">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <path d="M4 6c0-2.2 3.6-4 8-4s8 1.8 8 4-3.6 4-8 4-8-1.8-8-4z" fill="#003b57" stroke="#0ea5e9" stroke-width="1.5"/>
