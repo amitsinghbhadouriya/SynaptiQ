@@ -1,0 +1,2 @@
+{"question_id": "health_001", "question": "What is the recommended dosage protocol for medication X?", "expected_answer": "Dosage protocol specifies 20mg twice daily with meals.", "source_chunk_id": "chunk_health_1", "question_type": "factual", "is_hard_negative": false}
+{"question_id": "health_002", "question": "What are primary contraindications for therapy Y?", "expected_answer": "Contraindications include severe renal impairment and pregnancy.", "source_chunk_id": "chunk_health_2", "question_type": "factual", "is_hard_negative": false}
