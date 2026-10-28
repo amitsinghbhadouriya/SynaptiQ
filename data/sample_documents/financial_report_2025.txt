@@ -1,0 +1,8 @@
+SynaptiQ Financial Knowledge Base - Annual Report 2025
+
+1. Financial Overview:
+Total revenue for fiscal year 2025 reached $48.5M, an increase of 28% year-over-year.
+Operating margins expanded by 340 basis points to 22.4%, driven by cloud optimization and automated evaluation workflows.
+
+2. Research and Development:
+R&D investment stood at $14.2M, focusing on automated hallucination diagnostic models, hybrid retrieval architectures, and real-time citation heatmaps.
