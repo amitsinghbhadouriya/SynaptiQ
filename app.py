@@ -10,6 +10,10 @@ Pages (navigation happens inside the UI, so Streamlit's own sidebar is hidden):
 
 import streamlit as st
 
+from backend.windows_patch import patch_windows_asyncio
+
+patch_windows_asyncio()
+
 st.set_page_config(
     page_title="SynaptiQ — RAG evaluation",
     page_icon=":material/hub:",
