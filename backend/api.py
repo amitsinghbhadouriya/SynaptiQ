@@ -29,9 +29,12 @@ from .process_lock import StorageInUse
 from .schemas import MODES, QUESTION_TYPES, EvaluationRun, new_id, to_jsonable
 from .service import NotFound, Workspace
 from .ui_bridge import build_state, handle_event
+from .windows_patch import patch_windows_asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("synaptiq.api")
+
+patch_windows_asyncio()
 
 _workspace: Workspace | None = None
 _workspace_lock = threading.Lock()
@@ -58,6 +61,8 @@ def _warm_up() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Ensure Windows Proactor connection-lost error suppression is active on this loop
+    patch_windows_asyncio()
     # Warm up in the background so the server accepts requests immediately.
     threading.Thread(target=_warm_up, name="synaptiq-warmup", daemon=True).start()
     yield
