@@ -6,6 +6,9 @@ import re
 from typing import List
 from .attribution_schemas import AtomicClaim
 
+# Pre-compiled boundary pattern for efficient proposition segmentation
+_SENTENCE_SPLIT_REGEX = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
+
 
 class ClaimExtractor:
     """Extracts factual claims by segmenting on punctuation and subordinating conjunctions."""
@@ -14,7 +17,7 @@ class ClaimExtractor:
         if not text:
             return []
 
-        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+        sentences = _SENTENCE_SPLIT_REGEX.split(text.strip())
         claims: List[AtomicClaim] = []
         cursor = 0
 
