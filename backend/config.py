@@ -132,3 +132,13 @@ def load_settings() -> Settings:
         max_questions=_env_int("MAX_QUESTIONS", 50, 1, 500),
         ragas_enabled=_env_bool("RAGAS_ENABLED", True),
     )
+
+def get_security_config() -> dict:
+    """Retrieve security configuration settings with safe defaults."""
+    return {
+        "rate_limit_per_minute": int(os.environ.get("SYNAPTIQ_RATE_LIMIT", "30")),
+        "token_expiry_seconds": int(os.environ.get("SYNAPTIQ_TOKEN_EXPIRY", "3600")),
+    }
+
+
+get_settings = load_settings
