@@ -424,6 +424,13 @@ pytest tests/test_root_cause.py -v
   npm run build
   ```
 
+### 5. `ConnectionResetError: [WinError 10054]` in `_call_connection_lost`
+- **Cause**: On Windows, Python's default `ProactorEventLoop` raises `[WinError 10054]` when a browser tab, iframe, or WebSocket connection disconnects abruptly (such as when refreshing a page or navigating). This is a known, harmless Python standard library quirk on Windows.
+- **Solution**: SynaptiQ includes an automatic patch in `backend/windows_patch.py` that intercepts and silences this error across Streamlit, FastAPI, and Uvicorn. If you run custom scripts, ensure you import `backend` or activate the project virtual environment:
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  ```
+
 ---
 
 ## 📄 License
@@ -438,3 +445,9 @@ This project is licensed under the **MIT License** - you are free to use, modify
 *Questions or feedback? Feel free to open an issue or pull request on GitHub!*
 
 </div>
+
+### 6. SynaptiQ v1.1.0 Architecture Highlights
+- **Hybrid Retrieval**: Dense vector embeddings fused with BM25 lexical search via Reciprocal Rank Fusion ($k=60$).
+- **Sliding-Window Rate Limiting**: Production-grade 30 req/min anti-abuse throttling.
+- **Hallucination Diagnostics**: Fine-grained claim extraction and citation verification.
+- **Telemetry & Metrics**: OpenTelemetry W3C trace context propagation and Prometheus endpoint.
