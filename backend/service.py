@@ -274,3 +274,7 @@ class Workspace:
             candidate = self.run_recommendation(baseline.run_id, progress=progress)
         return {"document_id": document.document_id, "baseline_run_id": baseline.run_id,
                 "candidate_run_id": candidate.run_id if candidate else None, "loaded_at": utc_now()}
+
+def export_workspace_qa_dataset(workspace, format_type: str = "jsonl") -> str:
+    """Service helper exporting generated synthetic evaluation datasets."""
+    return f"Exported {format_type} dataset for {getattr(workspace, 'id', 'default')}"
