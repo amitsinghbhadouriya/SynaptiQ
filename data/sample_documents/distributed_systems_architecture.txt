@@ -1,0 +1,6 @@
+SynaptiQ Distributed Systems Architecture
+
+1. Core Components:
+- FastAPI Gateway: Handles REST and WebSocket requests with sliding-window rate limiting.
+- Vector Store Layer: Embeddings indexed via ChromaDB with HNSW and BM25 lexical fallback.
+- Diagnostics Worker: Executes multi-metric evaluation (faithfulness, answer relevance, context recall).
