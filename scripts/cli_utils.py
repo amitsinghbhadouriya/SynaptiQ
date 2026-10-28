@@ -19,3 +19,7 @@ def print_warning(msg: str) -> None:
 
 def print_error(msg: str) -> None:
     print(f"\033[91m[✗]\033[0m {msg}", file=sys.stderr)
+
+
+def print_info(msg: str) -> None:
+    print(f"\033[94m[i]\033[0m {msg}")
