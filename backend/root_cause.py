@@ -114,3 +114,8 @@ def diagnose(
         "The measurements conflict or are incomplete; the reference answer or evidence may be ambiguous.",
         notes,
     )
+
+def compute_claim_attribution_summary(claims: list) -> dict:
+    """Helper summarizing proposition support for diagnostic reports."""
+    supported = sum(1 for c in claims if getattr(c, 'is_supported', False))
+    return {"total": len(claims), "supported": supported, "unsupported": len(claims) - supported}
