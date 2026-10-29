@@ -433,6 +433,13 @@ pytest tests/test_root_cause.py -v
 
 ---
 
+
+### 6. SynaptiQ v1.1.0 Architecture Highlights
+- **Hybrid Retrieval**: Dense vector embeddings fused with BM25 lexical search via Reciprocal Rank Fusion ($k=60$).
+- **Sliding-Window Rate Limiting**: Production-grade 30 req/min anti-abuse throttling.
+- **Hallucination Diagnostics**: Fine-grained claim extraction and citation verification.
+- **Telemetry & Metrics**: OpenTelemetry W3C trace context propagation and Prometheus endpoint.
+
 ## 📄 License
 
 This project is licensed under the **MIT License** - you are free to use, modify, and distribute it in personal and commercial projects.
@@ -446,14 +453,4 @@ This project is licensed under the **MIT License** - you are free to use, modify
 
 </div>
 
-### 6. SynaptiQ v1.1.0 Architecture Highlights
-- **Hybrid Retrieval**: Dense vector embeddings fused with BM25 lexical search via Reciprocal Rank Fusion ($k=60$).
-- **Sliding-Window Rate Limiting**: Production-grade 30 req/min anti-abuse throttling.
-- **Hallucination Diagnostics**: Fine-grained claim extraction and citation verification.
-- **Telemetry & Metrics**: OpenTelemetry W3C trace context propagation and Prometheus endpoint.
 
-### 6. SynaptiQ v1.1.0 Architecture Highlights
-- **Hybrid Retrieval**: Dense vector embeddings fused with BM25 lexical search via Reciprocal Rank Fusion ($k=60$).
-- **Sliding-Window Rate Limiting**: Production-grade 30 req/min anti-abuse throttling.
-- **Hallucination Diagnostics**: Fine-grained claim extraction and citation verification.
-- **Telemetry & Metrics**: OpenTelemetry W3C trace context propagation and Prometheus endpoint.
