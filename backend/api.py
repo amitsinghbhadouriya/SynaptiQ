@@ -30,6 +30,7 @@ from .schemas import MODES, QUESTION_TYPES, EvaluationRun, new_id, to_jsonable
 from .service import NotFound, Workspace
 from .ui_bridge import build_state, handle_event
 from .windows_patch import patch_windows_asyncio
+from .api_auth_routes import auth_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("synaptiq.api")
@@ -283,6 +284,8 @@ def ui_action(event: dict[str, Any]) -> dict[str, Any]:
         state["charts"]["comparison"] = outcome.get("comparison_chart")
     return state
 
+
+app.include_router(auth_router)
 
 _dist = PROJECT_ROOT / "frontend" / "dist"
 if _dist.is_dir():
