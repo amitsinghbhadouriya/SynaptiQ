@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import TargetCursor from '../components/reactbits/TargetCursor.jsx';
 import CallToAction from './sections/CallToAction.jsx';
 import Diagnosis from './sections/Diagnosis.jsx';
 import Features from './sections/Features.jsx';
@@ -30,7 +29,6 @@ export default function LandingPage({ send }) {
 
   return (
     <div className="landing">
-      <TargetCursor targetSelector=".cursor-target" spinDuration={2} hideDefaultCursor parallaxOn cursorColor="#ffffff" />
       <Navbar onLaunch={launch} />
       <main>
         <Hero onLaunch={launch} />
