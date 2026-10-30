@@ -244,8 +244,54 @@
 
 /* -------------------------------------------------------------- buttons */
 .cta-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-family: inherit;
   font-weight: 600;
   letter-spacing: -0.005em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+  outline: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cta-btn:hover {
+  transform: translateY(-1px);
+}
+
+.cta-btn:active {
+  transform: translateY(0);
+}
+
+.cta-btn--primary {
+  background: #eef0f5;
+  color: #0b0d12;
+  border-color: rgba(11, 13, 18, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.cta-btn--primary:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(255, 255, 255, 0.22);
+}
+
+.cta-btn--secondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: #eef0f5;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.cta-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
 }
 
 .cta-btn--md {

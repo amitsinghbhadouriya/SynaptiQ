@@ -469,8 +469,68 @@
 
 /* --------------------------------------------------------------- buttons */
 .d-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: inherit;
   font-weight: 600;
   white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  outline: none;
+  user-select: none;
+}
+
+.d-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.d-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.d-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.d-btn--primary {
+  background: var(--d-primary, #2a78d6);
+  color: #ffffff;
+  border-color: rgba(42, 120, 214, 0.35);
+  box-shadow: 0 2px 8px rgba(42, 120, 214, 0.25);
+}
+
+.d-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px rgba(42, 120, 214, 0.35);
+}
+
+.d-btn--dark {
+  background: #15171c;
+  color: #ffffff;
+  border-color: rgba(21, 23, 28, 0.2);
+}
+
+[data-theme='dark'] .d-btn--dark {
+  background: #eef0f4;
+  color: #111318;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.d-btn--ghost {
+  background: var(--d-surface, #ffffff);
+  color: var(--d-ink, #15171c);
+  border-color: var(--d-border, #e3e5ea);
+}
+
+.d-btn--ghost:hover:not(:disabled) {
+  background: var(--d-surface-alt, #f4f5f8);
+  border-color: var(--d-border-strong, #d1d5db);
 }
 
 .d-btn--md {
