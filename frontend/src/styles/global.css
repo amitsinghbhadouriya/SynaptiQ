@@ -225,3 +225,52 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+/* Auth Modal Interactivity & Cursor Reset */
+.nav-wrapper:has(.sq-modal-overlay),
+.nav-wrapper .sq-modal-overlay,
+.sq-modal-overlay {
+  pointer-events: auto !important;
+  cursor: default !important;
+  z-index: 100000 !important;
+}
+
+.sq-auth-card,
+.sq-auth-card * {
+  pointer-events: auto !important;
+}
+
+.sq-auth-close,
+.sq-auth-tab,
+.sq-auth-btn {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.sq-auth-input {
+  cursor: text !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+html body .sq-modal-overlay,
+html body .sq-modal-overlay * {
+  cursor: auto !important;
+}
+
+html body .sq-auth-card {
+  cursor: default !important;
+}
+
+html body .sq-auth-close,
+html body .sq-auth-tab,
+html body .sq-auth-btn {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+html body .sq-auth-input {
+  cursor: text !important;
+  pointer-events: auto !important;
+}
