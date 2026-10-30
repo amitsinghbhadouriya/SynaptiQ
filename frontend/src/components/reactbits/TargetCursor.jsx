@@ -35,7 +35,8 @@ const TargetCursor = ({
   blendMode = 'difference',
   showLabel = true,
   clickEffect = true,
-  container
+  container,
+  onlyOnTarget = false
 }) => {
   const [host, setHost] = useState(null);
   const rootRef = useRef(null);
@@ -59,7 +60,8 @@ const TargetCursor = ({
     dotSize: Math.max(0, dotSize),
     showLabel,
     clickEffect,
-    container
+    container,
+    onlyOnTarget
   };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -252,20 +254,21 @@ const TargetCursor = ({
         root.style.setProperty('--target-cursor-color', color);
         lastColor = color;
       }
-      root.style.opacity = Math.max(0, Math.min(1, presence.x)).toFixed(3);
+      const alpha = s.onlyOnTarget ? lock.x : presence.x;
+      root.style.opacity = Math.max(0, Math.min(1, alpha)).toFixed(3);
 
       const resting =
-        !pointer.inside &&
-        presence.x < 0.002 &&
+        (s.onlyOnTarget ? lock.x < 0.002 : !pointer.inside) &&
+        alpha < 0.002 &&
         Math.abs(presence.v) < 0.002 &&
         Math.abs(lock.x) < 0.002 &&
         Math.abs(press.x) < 0.002;
-      const spinning = pointer.inside && !locked && spinSpeed > 0.0001;
+      const spinning = !s.onlyOnTarget && pointer.inside && !locked && spinSpeed > 0.0001;
       const moving =
         Math.abs(centerX.v) + Math.abs(centerY.v) + Math.abs(halfW.v) + Math.abs(halfH.v) + Math.abs(turn.v) > 0.01 ||
         Math.abs(goalX - centerX.x) + Math.abs(goalY - centerY.x) > 0.05 ||
         Math.abs(lock.v) + Math.abs(press.v) + Math.abs(presence.v) > 0.001;
-      if (!resting && (spinning || moving || locked)) raf = requestAnimationFrame(frame);
+      if (!resting && (spinning || moving || locked || (s.onlyOnTarget && lock.x > 0.001))) raf = requestAnimationFrame(frame);
       else last = 0;
     };
 
