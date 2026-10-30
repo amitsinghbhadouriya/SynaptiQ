@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 import { createBridge } from './bridge/transport.js';
+import GlowCursor from './components/reactbits/GlowCursor.jsx';
+import TargetCursor from './components/reactbits/TargetCursor.jsx';
 
 const LandingPage = lazy(() => import('./landing/LandingPage.jsx'));
 const DashboardApp = lazy(() => import('./dashboard/DashboardApp.jsx'));
@@ -56,22 +58,60 @@ export default function App() {
     if (view) window.scrollTo(0, 0);
   }, [view]);
 
-  if (!props) return <Splash />;
+  const cursorNode = (
+    <GlowCursor
+      color="#3987e5"
+      secondaryColor="#6366f1"
+      intensity={0.55}
+      glow={0.5}
+      hotspot={0.25}
+      trailWidth={2.2}
+      linger={1.0}
+      clickBurst
+      theme="dark"
+      className="glow-cursor--fixed"
+    />
+  );
+
+  const targetCursorNode = (
+    <TargetCursor
+      targetSelector="button, [role='button'], a.btn, a.nav__link-btn, .cursor-target, .dash button, .dash a, .dash .d-tab, .dash .d-seg__opt, .dash .d-icon-btn, .dash .d-metric, .dash .d-card"
+      hideDefaultCursor={false}
+      onlyOnTarget
+      spinDuration={2}
+      parallaxOn
+      cursorColor="#38bdf8"
+    />
+  );
+
+  if (!props) {
+    return (
+      <>
+        {cursorNode}
+        {targetCursorNode}
+        <Splash />
+      </>
+    );
+  }
 
   return (
-    <Suspense fallback={<Splash />}>
-      {view === 'dashboard' ? (
-        <DashboardApp
-          data={props.data}
-          notice={props.data?.notice ?? props.notice}
-          download={props.data?.download ?? props.download}
-          apiError={props.api_error}
-          mode={bridgeRef.current?.mode}
-          send={send}
-        />
-      ) : (
-        <LandingPage send={send} />
-      )}
-    </Suspense>
+    <>
+      {cursorNode}
+      {targetCursorNode}
+      <Suspense fallback={<Splash />}>
+        {view === 'dashboard' ? (
+          <DashboardApp
+            data={props.data}
+            notice={props.data?.notice ?? props.notice}
+            download={props.data?.download ?? props.download}
+            apiError={props.api_error}
+            mode={bridgeRef.current?.mode}
+            send={send}
+          />
+        ) : (
+          <LandingPage send={send} />
+        )}
+      </Suspense>
+    </>
   );
 }
