@@ -18,6 +18,11 @@
   transition: padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.nav-wrapper:has(.sq-modal-overlay),
+.nav-wrapper .sq-modal-overlay {
+  pointer-events: auto !important;
+}
+
 .nav-wrapper--scrolled {
   padding: 10px 16px;
 }
