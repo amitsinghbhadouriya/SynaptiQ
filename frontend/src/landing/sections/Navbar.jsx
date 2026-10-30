@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X, Sparkles, User } from 'lucide-react';
 
 import LogoMark from '../../components/LogoMark.jsx';
+import AuthModal from '../../components/AuthModal.jsx';
 import { CtaButton, scrollToId } from '../shared.jsx';
 
 const LINKS = [
@@ -17,6 +18,14 @@ const LINKS = [
 export default function Navbar({ onLaunch }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('synaptiq_user') || 'null');
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -70,6 +79,29 @@ export default function Navbar({ onLaunch }) {
             <span className="nav__status-text">Local-First</span>
           </div>
 
+          <button
+            type="button"
+            className="nav__link-btn cursor-target"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              background: 'rgba(255, 255, 255, 0.04)',
+              color: user ? '#38bdf8' : '#e2e8f0',
+              fontWeight: 500,
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+            onClick={() => setAuthOpen(true)}
+            data-cursor-label={user ? user.username : 'Account'}
+          >
+            <User size={14} />
+            <span>{user ? user.username : 'Sign In'}</span>
+          </button>
+
           <CtaButton size="sm" onClick={onLaunch} className="cursor-target" data-cursor-label="Dashboard">
             Launch Dashboard
           </CtaButton>
@@ -85,6 +117,8 @@ export default function Navbar({ onLaunch }) {
           </button>
         </div>
       </nav>
+
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={u => setUser(u)} />
 
       {mobileOpen && (
         <div className="nav__mobile-menu">
