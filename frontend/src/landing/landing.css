@@ -1569,6 +1569,12 @@
   margin-bottom: 24px;
 }
 
+.cta__heading-container {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto 20px;
+}
+
 .cta__reveal.scroll-reveal {
   max-width: 1000px;
   margin: 0 0 20px;

@@ -1,7 +1,8 @@
 import { ArrowUp, ShieldCheck, Sparkles } from 'lucide-react';
 
-import ScrollReveal from '../../components/reactbits/ScrollReveal.jsx';
+import MaskedHeading from '../../components/reactbits/MaskedHeading.jsx';
 import LogoMark from '../../components/LogoMark.jsx';
+import evidenceImg from '../../assets/features/evidence.jpg';
 import { TAGLINE } from '../content.js';
 import { CtaButton, scrollToId } from '../shared.jsx';
 
@@ -16,17 +17,29 @@ export default function CallToAction({ onLaunch }) {
             <span>Deterministic RAG Intelligence</span>
           </div>
 
-          <ScrollReveal
-            containerClassName="cta__reveal"
-            textClassName="cta__text"
-            baseOpacity={0.1}
-            enableBlur
-            blurStrength={5}
-            baseRotation={3}
-            highlightColor="#3987e5"
-          >
-            SynaptiQ turns RAG evaluation from a score report into an evidence-backed improvement workflow.
-          </ScrollReveal>
+          <div className="cta__heading-container">
+            <MaskedHeading
+              text="Turn RAG Evaluation Into Verifiable Fixes"
+              tag="h2"
+              mediaType="image"
+              src={evidenceImg}
+              fillScale={1.3}
+              parallax={28}
+              drift={14}
+              reveal="rise"
+              trigger="view"
+              spotlight
+              spotlightRadius={190}
+              outline
+              outlineColor="rgba(56, 189, 248, 0.45)"
+              outlineWidth={1}
+              weight={700}
+              textScale={0.068}
+              align="center"
+              tint="rgba(57, 135, 229, 0.15)"
+              className="cta__masked-title"
+            />
+          </div>
 
           <p className="cta__sub">
             Test your retriever and generator in isolation. Uncover the exact cause of hallucinations and retrieval misses.
