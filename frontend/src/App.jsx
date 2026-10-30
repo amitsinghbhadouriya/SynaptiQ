@@ -75,7 +75,7 @@ export default function App() {
 
   const targetCursorNode = (
     <TargetCursor
-      targetSelector="button, [role='button'], a.btn, a.nav__link-btn, .cursor-target, .dash button, .dash a, .dash .d-tab, .dash .d-seg__opt, .dash .d-icon-btn, .dash .d-metric, .dash .d-card"
+      targetSelector="button, [role='button'], a.btn, a.nav__link-btn, .cursor-target, .orbit-item, .dash button, .dash a, .dash .d-tab, .dash .d-seg__opt, .dash .d-icon-btn, .dash .d-metric, .dash .d-card"
       hideDefaultCursor={false}
       onlyOnTarget
       spinDuration={2}
