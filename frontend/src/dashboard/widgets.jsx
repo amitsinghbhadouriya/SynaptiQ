@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Plotly from 'plotly.js-basic-dist-min';
 import { ArrowDownRight, ArrowUpRight, CircleCheck, CircleX, Minus, TriangleAlert } from 'lucide-react';
 
+import SpecularButton from '../components/reactbits/SpecularButton.jsx';
 import { DIAGNOSIS_TONE } from './format.js';
 
 // ------------------------------------------------------------- count-up
@@ -41,16 +42,46 @@ export function CountUp({ value, format = v => Math.round(v).toLocaleString(), c
 
 // --------------------------------------------------------------- buttons
 export function Button({ variant = 'ghost', theme = 'light', size = 'md', icon: Icon, children, className = '', ...props }) {
+  const isDark = theme === 'dark';
+  const primary = variant === 'primary';
+  const darkVar = variant === 'dark';
+
+  const tint = primary
+    ? (isDark ? '#3987e5' : '#2a78d6')
+    : (darkVar ? (isDark ? '#eef0f4' : '#15171c') : (isDark ? '#1a1d23' : '#ffffff'));
+  const tintOpacity = primary ? 1.0 : (darkVar ? 1.0 : (isDark ? 0.6 : 0.95));
+  const textColor = primary
+    ? '#ffffff'
+    : (darkVar ? (isDark ? '#111318' : '#ffffff') : (isDark ? '#eef0f4' : '#15171c'));
+  const lineColor = primary ? '#ffffff' : (isDark ? '#38bdf8' : '#2a78d6');
+  const baseColor = primary
+    ? 'rgba(255, 255, 255, 0.4)'
+    : (isDark ? 'rgba(56, 189, 248, 0.28)' : 'rgba(42, 120, 214, 0.25)');
+
   return (
-    <button
-      type="button"
+    <SpecularButton
+      size={size}
+      radius={999}
+      tint={tint}
+      tintOpacity={tintOpacity}
+      textColor={textColor}
+      lineColor={lineColor}
+      baseColor={baseColor}
+      intensity={1.25}
+      idleIntensity={0.4}
+      shineSize={85}
+      shineFade={110}
+      thickness={1.5}
+      glow={1.1}
+      followMouse
+      proximity={280}
       className={`d-btn d-btn--${size} d-btn--${variant} ${className}`.trim()}
       data-theme={theme}
       {...props}
     >
       {Icon && <Icon size={size === 'sm' ? 14 : 15} strokeWidth={2} aria-hidden="true" />}
       {children}
-    </button>
+    </SpecularButton>
   );
 }
 
