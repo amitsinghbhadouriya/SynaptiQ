@@ -1,0 +1,135 @@
+/* Magic UI Terminal Styles */
+.magicui-terminal {
+  position: relative;
+  width: 100%;
+  max-width: 38rem;
+  min-height: 220px;
+  max-height: 520px;
+  overflow-y: auto;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #090d16;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 20px 0 rgba(14, 165, 233, 0.08);
+  box-sizing: border-box;
+}
+
+.magicui-terminal-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-sizing: border-box;
+}
+
+.magicui-terminal-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.magicui-terminal-dots {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.magicui-terminal-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.magicui-terminal-dot--red {
+  background-color: #ef4444;
+}
+
+.magicui-terminal-dot--yellow {
+  background-color: #eab308;
+}
+
+.magicui-terminal-dot--green {
+  background-color: #22c55e;
+}
+
+.magicui-terminal-title {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.magicui-terminal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  line-height: 1.5;
+}
+
+/* Utilities for Terminal child elements */
+.magicui-terminal .text-green-500,
+.text-green-500 {
+  color: #22c55e !important;
+}
+
+.magicui-terminal .text-blue-500,
+.text-blue-500 {
+  color: #3b82f6 !important;
+}
+
+.magicui-terminal .text-muted-foreground,
+.text-muted-foreground {
+  color: #94a3b8 !important;
+}
+
+.magicui-terminal .pl-2,
+.pl-2 {
+  padding-left: 0.5rem !important;
+}
+
+.magicui-terminal-typing {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.magicui-terminal-typing::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 3px;
+  background-color: currentColor;
+  opacity: 0.8;
+  animation: magicui-cursor-blink 1s step-start infinite;
+}
+
+.magicui-terminal-typing.typing-complete::after {
+  display: none;
+}
+
+.magicui-terminal-span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.875rem;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+@keyframes magicui-cursor-blink {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0; }
+}
+
