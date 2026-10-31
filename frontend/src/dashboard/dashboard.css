@@ -477,7 +477,7 @@
   font-weight: 600;
   white-space: nowrap;
   border-radius: 999px;
-  border: 0;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;

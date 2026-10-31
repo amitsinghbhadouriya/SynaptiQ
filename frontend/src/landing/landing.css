@@ -256,7 +256,7 @@
   text-decoration: none;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 0;
+  border: 1px solid transparent;
   outline: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
