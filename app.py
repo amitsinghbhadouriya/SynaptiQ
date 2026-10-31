@@ -25,7 +25,6 @@ pages = [
     st.Page("streamlit_ui/pages/home.py", title="Home", icon=":material/home:", url_path="home", default=True),
     st.Page("streamlit_ui/pages/dashboard.py", title="Dashboard", icon=":material/dashboard:", url_path="dashboard"),
     st.Page("streamlit_ui/pages/workbench.py", title="Workbench", icon=":material/build:", url_path="workbench"),
-    st.Page("streamlit_ui/pages/terminal_page.py", title="Terminal", icon=":material/terminal:", url_path="terminal"),
 ]
 
 st.navigation(pages, position="hidden").run()

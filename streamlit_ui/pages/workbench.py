@@ -17,22 +17,18 @@ from streamlit_ui.shared import DASHBOARD, HOME, get_workspace
 
 workspace = get_workspace()
 
-top = st.columns([5, 1.3, 1.3, 1.3])
+top = st.columns([6, 1.3, 1.3])
 top[0].title("Workbench")
 top[0].caption("Native Streamlit tools for reviewing test sets and inspecting raw results. Everything here is also in the dashboard.")
 if top[1].button("← Dashboard", width="stretch"):
     st.switch_page(DASHBOARD)
 if top[2].button("Landing page", width="stretch"):
     st.switch_page(HOME)
-if top[3].button("Terminal demo", width="stretch"):
-    st.switch_page("streamlit_ui/pages/terminal_page.py")
 
 documents = workspace.storage.list_documents()
 doc_names = {d.document_id: d.filename for d in documents}
 
-tab_upload, tab_review, tab_runs, tab_compare, tab_terminal = st.tabs(
-    ["Upload", "Test set review", "Runs & results", "Compare runs", "Terminal"]
-)
+tab_upload, tab_review, tab_runs, tab_compare = st.tabs(["Upload", "Test set review", "Runs & results", "Compare runs"])
 
 # ------------------------------------------------------------------ upload
 with tab_upload:
@@ -198,18 +194,4 @@ with tab_compare:
                 q = comparison["questions"]
                 st.write(f"Fixed: {len(q['fixed'])} · Regressed: {len(q['regressed'])} · "
                          f"Still failing: {len(q['still_failing'])} · Still passing: {q['still_passing']}")
-
-# ---------------------------------------------------------------- terminal
-with tab_terminal:
-    st.subheader("Magic UI Terminal")
-    st.caption("Native Python Streamlit components — runs with zero node_modules or build steps.")
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        st.markdown("**Command Line / Init Demo**")
-        from streamlit_ui.terminal import render_terminal_demo
-        render_terminal_demo(height=420)
-    with col_t2:
-        st.markdown("**SynaptiQ Diagnostic Terminal**")
-        from streamlit_ui.terminal import render_synaptiq_terminal
-        render_synaptiq_terminal(height=420)
 
